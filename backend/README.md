@@ -2,35 +2,40 @@
 
 Collaborative Decision-Making & Community Polling Platform Backend Service.
 
-DecisionHub is built with Spring Boot, Spring Security, Spring Data JPA, and MySQL. It delivers secure, scalable RESTful APIs for decision management, polling, multi-option voting, community discussions, and notifications.
+DecisionHub is built with Java 21, Spring Boot 4.1.2, Spring Security, Spring Data JPA, and MySQL. It delivers secure, scalable RESTful APIs for decision management, polling, multi-option voting, community discussions, and notifications.
 
 ---
 
-## 1. Database Architecture & Schema Design
+## 1. Database Architecture & Schema Design (Phase 2.1 Refined)
 
-The DecisionHub database (`decisionhub`) follows a normalized relational structure designed for performance, relational integrity, and strict deduplication (such as preventing multiple votes per user on a decision).
+The DecisionHub database (`decisionhub`) follows a normalized relational structure (3NF) designed for high concurrency, relational integrity, multi-poll voting flexibility, and strict deduplication.
 
-### Entity Relationship Diagram (ERD)
+### Refined Entity Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
-    USERS ||--o{ DECISIONS : "creates"
-    USERS ||--o{ COMMUNITIES : "creates"
-    USERS ||--o{ VOTES : "casts"
-    USERS ||--o{ COMMENTS : "writes"
-    USERS ||--o{ NOTIFICATIONS : "receives"
-    USERS ||--o{ REPORTS : "files"
-    
-    COMMUNITIES ||--o{ DECISIONS : "contains"
-    
-    DECISIONS ||--|{ OPTIONS : "has"
-    DECISIONS ||--o{ VOTES : "receives"
-    DECISIONS ||--o{ COMMENTS : "contains"
-    DECISIONS ||--o{ REPORTS : "receives"
-    
-    OPTIONS ||--o{ VOTES : "selected_in"
-    
-    COMMENTS ||--o{ COMMENTS : "replies_to (parent)"
+    USERS ||--o{ DECISIONS : "creates (1:N)"
+    USERS ||--o{ COMMUNITIES : "creates (1:N)"
+    USERS ||--o{ COMMUNITY_MEMBERS : "joins (1:N)"
+    USERS ||--o{ BALLOTS : "casts (1:N)"
+    USERS ||--o{ COMMENTS : "writes (1:N)"
+    USERS ||--o{ NOTIFICATIONS : "receives (1:N)"
+    USERS ||--o{ REPORTS : "files (1:N)"
+    USERS ||--o{ VOTES : "legacy_casts (1:N)"
+
+    COMMUNITIES ||--o{ DECISIONS : "contains (1:N)"
+    COMMUNITIES ||--o{ COMMUNITY_MEMBERS : "has (1:N)"
+
+    DECISIONS ||--|{ OPTIONS : "has (1:N)"
+    DECISIONS ||--o{ BALLOTS : "receives (1:N)"
+    DECISIONS ||--o{ COMMENTS : "contains (1:N)"
+    DECISIONS ||--o{ REPORTS : "receives (1:N)"
+    DECISIONS ||--o{ VOTES : "legacy_receives (1:N)"
+
+    BALLOTS ||--|{ BALLOT_SELECTIONS : "contains (1:N)"
+    OPTIONS ||--o{ BALLOT_SELECTIONS : "selected_in (1:N)"
+
+    COMMENTS ||--o{ COMMENTS : "replies_to (parent 1:N)"
 
     USERS {
         bigint id PK
@@ -52,6 +57,17 @@ erDiagram
         datetime updated_at
     }
 
+    COMMUNITY_MEMBERS {
+        bigint id PK
+        bigint community_id FK
+        bigint user_id FK
+        varchar role
+        varchar status
+        datetime joined_at
+        datetime created_at
+        datetime updated_at
+    }
+
     DECISIONS {
         bigint id PK
         varchar title
@@ -59,6 +75,7 @@ erDiagram
         varchar category
         varchar visibility
         varchar status
+        varchar poll_type
         bigint creator_id FK
         bigint community_id FK
         datetime deadline
@@ -73,14 +90,25 @@ erDiagram
         text description
         int display_order
         datetime created_at
+        datetime updated_at
     }
 
-    VOTES {
+    BALLOTS {
         bigint id PK
         bigint user_id FK
         bigint decision_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    BALLOT_SELECTIONS {
+        bigint id PK
+        bigint ballot_id FK
         bigint option_id FK
-        datetime vote_date
+        bigint decision_id FK
+        int rating
+        datetime created_at
+        datetime updated_at
     }
 
     COMMENTS {
@@ -101,6 +129,7 @@ erDiagram
         boolean is_read
         bigint reference_id
         datetime created_at
+        datetime updated_at
     }
 
     REPORTS {
@@ -111,155 +140,142 @@ erDiagram
         text description
         varchar status
         datetime created_at
+        datetime updated_at
     }
 ```
 
 ---
 
-## 2. Entity Details & Relational Rules
+## 2. Implemented Database Entities & Repositories
 
-### Implemented in Phase 2:
-1. **User (`users`)**:
-   - `id`: BIGINT AUTO_INCREMENT Primary Key (inherited from `BaseEntity`).
-   - `full_name`: VARCHAR(100), NOT NULL.
-   - `email`: VARCHAR(100), NOT NULL, UNIQUE constraint (`uk_users_email`).
-   - `password`: VARCHAR(255), NOT NULL (encrypted hash via BCrypt in auth phase).
-   - `role`: VARCHAR(30), NOT NULL (`ROLE_USER`, `ROLE_COMMUNITY_MODERATOR`, `ROLE_ADMIN`).
-   - `status`: VARCHAR(20), NOT NULL (`ACTIVE`, `PENDING`, `SUSPENDED`, `DEACTIVATED`).
-   - `created_at` & `updated_at`: Standard auditing timestamps from `BaseEntity`.
+### 1. User (`users`)
+- **Entity**: `User.java` | **Repository**: `UserRepository.java`
+- **Columns**: `id`, `full_name`, `email` (UK), `password`, `role` (`ROLE_USER`, `ROLE_COMMUNITY_MODERATOR`, `ROLE_ADMIN`), `status` (`ACTIVE`, `PENDING`, `SUSPENDED`, `DEACTIVATED`), timestamps.
 
-### Designed for Upcoming Milestones:
-2. **Community (`communities`)**:
-   - Organization or interest group hosting collective decisions.
-   - Foreign Key: `creator_id` -> `users(id)`.
-3. **Decision (`decisions`)**:
-   - Core poll or decision topic. Supports categories, visibility rules (`PUBLIC`, `PRIVATE`), and status (`DRAFT`, `ACTIVE`, `CLOSED`, `ARCHIVED`).
-   - Foreign Keys: `creator_id` -> `users(id)`, `community_id` -> `communities(id)` (nullable).
-4. **Option (`options`)**:
-   - Choices available under a decision.
-   - Foreign Key: `decision_id` -> `decisions(id)` ON DELETE CASCADE.
-5. **Vote (`votes`)**:
-   - Ballot cast by a user.
-   - Foreign Keys: `user_id` -> `users(id)`, `decision_id` -> `decisions(id)`, `option_id` -> `options(id)`.
-   - **Single-Choice Deduplication**: Unique constraint `(user_id, decision_id)` prevents ballot stuffing or multiple votes by the same user on a given decision.
-6. **Comment (`comments`)**:
-   - Discussions under decisions with support for threaded replies via self-referencing `parent_comment_id`.
-   - Foreign Keys: `user_id` -> `users(id)`, `decision_id` -> `decisions(id)`, `parent_comment_id` -> `comments(id)`.
-7. **Notification (`notifications`)**:
-   - User notifications for poll closures, replies, and system alerts.
-   - Foreign Key: `user_id` -> `users(id)` ON DELETE CASCADE.
-8. **Report (`reports`)**:
-   - Community moderation reports for objectionable content or spam.
-   - Foreign Keys: `user_id` -> `users(id)`, `decision_id` -> `decisions(id)`.
+### 2. Community (`communities`)
+- **Entity**: `Community.java` | **Repository**: `CommunityRepository.java`
+- **Columns**: `id`, `name` (UK), `description`, `creator_id` (FK to `users.id`), timestamps.
+- **Relationships**: Created by a User. Contains `decisions` and `members`.
+
+### 3. Community Member (`community_members`)
+- **Entity**: `CommunityMember.java` | **Repository**: `CommunityMemberRepository.java`
+- **Columns**: `id`, `community_id` (FK), `user_id` (FK), `role` (`MEMBER`, `MODERATOR`, `ADMIN`), `status` (`ACTIVE`, `PENDING`, `BANNED`, `LEFT`), `joined_at`, timestamps.
+- **Constraints**: `UNIQUE KEY uk_community_members_user_community (user_id, community_id)`. Prevents duplicate memberships at the database level.
+- **Cascade Behavior**: Deleting a community cleans up membership associations without deleting user accounts.
+
+### 4. Decision (`decisions`)
+- **Entity**: `Decision.java` | **Repository**: `DecisionRepository.java`
+- **Columns**: `id`, `title`, `description`, `category`, `visibility` (`PUBLIC`, `PRIVATE`), `status` (`DRAFT`, `ACTIVE`, `CLOSED`, `ARCHIVED`), `poll_type` (`SINGLE_CHOICE`, `MULTIPLE_CHOICE`, `RATING`), `creator_id` (FK), `community_id` (FK, nullable), `deadline`, timestamps.
+- **Indexes**: `idx_decisions_creator`, `idx_decisions_community`, `idx_decisions_status`, `idx_decisions_category`.
+
+### 5. Option (`options`)
+- **Entity**: `Option.java` | **Repository**: `OptionRepository.java`
+- **Columns**: `id`, `decision_id` (FK), `title`, `description`, `display_order`, timestamps.
+- **Composite Key**: `UNIQUE KEY uk_options_id_decision (id, decision_id)`. Required for composite foreign key validation.
+
+### 6. Ballot (`ballots`)
+- **Entity**: `Ballot.java` | **Repository**: `BallotRepository.java`
+- **Columns**: `id`, `user_id` (FK), `decision_id` (FK), timestamps.
+- **Constraints**: `UNIQUE KEY uk_ballots_user_decision (user_id, decision_id)` and `UNIQUE KEY uk_ballots_id_decision (id, decision_id)`.
+- **Purpose**: Establishes the user's ballot submission for a decision. Guarantees one ballot per user per decision.
+
+### 7. Ballot Selection (`ballot_selections`)
+- **Entity**: `BallotSelection.java` | **Repository**: `BallotSelectionRepository.java`
+- **Columns**: `id`, `ballot_id` (FK), `option_id` (FK), `decision_id` (FK), `rating` (INT, nullable), timestamps.
+- **Constraints**: `UNIQUE KEY uk_ballot_selections_ballot_option (ballot_id, option_id)`.
+- **Composite Foreign Keys**:
+  - `fk_ballot_selections_opt_dec`: `FOREIGN KEY (option_id, decision_id) REFERENCES options (id, decision_id)`
+  - `fk_ballot_selections_bal_dec`: `FOREIGN KEY (ballot_id, decision_id) REFERENCES ballots (id, decision_id)`
+- **Voting Mechanism Support**:
+  - **Single-Choice**: Exactly 1 `BallotSelection` per `Ballot` (enforced at service level).
+  - **Multiple-Choice**: Multiple `BallotSelection` rows per `Ballot` (preventing duplicates via `uk_ballot_selections_ballot_option`).
+  - **Rating-Based**: Each selection carries a numeric score in `rating`.
+
+### 8. Comment (`comments`)
+- **Entity**: `Comment.java` | **Repository**: `CommentRepository.java`
+- **Columns**: `id`, `user_id` (FK), `decision_id` (FK), `content`, `parent_comment_id` (FK, nullable), timestamps.
+- **Composite Integrity Constraint**:
+  - `UNIQUE KEY uk_comments_id_decision (id, decision_id)`
+  - `CONSTRAINT fk_comments_parent_composite FOREIGN KEY (parent_comment_id, decision_id) REFERENCES comments (id, decision_id) ON DELETE CASCADE`
+  - Guarantees that threaded replies cannot reference a parent comment from a different decision.
+
+### 9. Notification (`notifications`)
+- **Entity**: `Notification.java` | **Repository**: `NotificationRepository.java`
+- **Columns**: `id`, `user_id` (FK), `type` (`VOTE_RECEIVED`, `DECISION_CLOSED`, `COMMENT_REPLY`, `SYSTEM`), `message`, `is_read`, `reference_id`, timestamps.
+
+### 10. Report (`reports`)
+- **Entity**: `Report.java` | **Repository**: `ReportRepository.java`
+- **Columns**: `id`, `user_id` (FK), `decision_id` (FK), `report_type` (`SPAM`, `INAPPROPRIATE`, `MISINFORMATION`, `OTHER`), `description`, `status` (`PENDING`, `REVIEWED`, `DISMISSED`, `RESOLVED`), timestamps.
+
+### 11. Legacy Vote Table (`votes`)
+- Preserved for backwards compatibility with legacy phase data.
+- Controlled migration plan documented below to transfer historical votes into `ballots` and `ballot_selections`.
 
 ---
 
-## 3. Relational Integrity & Architectural Analysis
+## 3. Relational Integrity & Cross-Entity Consistency
 
-### A. Voting Constraint: Single-Choice vs Multiple-Choice
-- **Current Constraint**: `UNIQUE KEY uk_votes_user_decision (user_id, decision_id)`
-  - **Single-Choice Impact**: Enforces the one-person-one-vote rule at the database level. Attempting to cast a second ballot throws a MySQL error 1062 (`DataIntegrityViolationException`). If a user wishes to change their selection, the record is updated with the new `option_id`.
-  - **Multiple-Choice Impact**: In polls where users may select multiple options, this constraint would prevent selecting a second option.
-  - **Planned Architectural Evolution**: When multiple-choice polls are introduced in future milestones, the platform can either:
-    1. Adopt a two-tier ballot schema (`ballots` table with `UNIQUE(user_id, decision_id)` and a child `ballot_options` table for multiple choices).
-    2. Adjust the constraint to `UNIQUE(user_id, decision_id, option_id)` accompanied by an application-level constraint enforcing a `max_selections` quota defined on the decision.
-
-### B. Cross-Entity Integrity Boundaries
-- **Option & Decision Consistency**:
-  - In `votes`, both `decision_id` and `option_id` are stored. A theoretical risk exists where a rogue request supplies `decision_id = 1` and `option_id = 42` (where option 42 belongs to decision 2).
-  - *Mitigation*: The service layer validates `option.getDecision().getId().equals(decisionId)` prior to persistence.
-- **Comment Parent & Decision Consistency**:
-  - In `comments`, a reply references `parent_comment_id` and `decision_id`.
-  - *Mitigation*: The service layer enforces that `parentComment.getDecision().getId().equals(decisionId)` before saving a threaded reply.
-
-### C. Hibernate DDL Configuration & Migration Roadmap
-- **Current Configuration**: `spring.jpa.hibernate.ddl-auto=update`
-  - *Suitability*: Ideal for rapid local prototyping and early development milestones. Automatically generates newly added tables, columns, and foreign keys without dropping existing developer data.
-  - *Limitations*: Does not drop obsolete columns, cannot automatically handle column renames, and cannot execute data migrations.
-  - *Future Migration Strategy*: When approaching staging and production deployments, transition to a version-controlled database migration framework (**Flyway**). `ddl-auto` will be set to `validate` (or `none`), and all DDL changes will be tracked as versioned SQL migration scripts (`V1__init.sql`, `V2__add_decisions.sql`).
+| Integrity Boundary | Level of Enforcement | How It Is Enforced |
+| :--- | :--- | :--- |
+| **Duplicate Community Membership** | Database Engine | `UNIQUE (user_id, community_id)` in `community_members`. |
+| **One Ballot Per User Per Decision** | Database Engine | `UNIQUE (user_id, decision_id)` in `ballots`. |
+| **Duplicate Option on Same Ballot** | Database Engine | `UNIQUE (ballot_id, option_id)` in `ballot_selections`. |
+| **Cross-Decision Option Selection** | Database Engine | Composite Foreign Key `(option_id, decision_id) REFERENCES options(id, decision_id)` in `ballot_selections`. |
+| **Cross-Decision Comment Reply** | Database Engine | Composite Foreign Key `(parent_comment_id, decision_id) REFERENCES comments(id, decision_id)` in `comments`. |
+| **Single-Choice / Max-Choice Quotas** | Service Level (Phase 4) | Validated in `VotingService` against `decision.pollType` and `maxChoicesAllowed`. |
+| **Rating Score Boundaries (e.g., 1-5)** | Service Level (Phase 4) | Validated in `VotingService` and Jakarta Validation annotations. |
 
 ---
 
-## 4. MySQL Installation & Setup
+## 4. Database Migration Plan for Legacy Votes
 
-1. **Install MySQL Server** (Version 8.0 or higher):
-   - Ensure the MySQL service is running on `localhost:3306`.
-2. **Create the Database**:
-   Connect via MySQL CLI, MySQL Workbench, or PowerShell:
-   ```sql
-   CREATE DATABASE IF NOT EXISTS decisionhub
-     CHARACTER SET utf8mb4
-     COLLATE utf8mb4_unicode_ci;
-   ```
-3. **Verify Database Connectivity**:
+To migrate historical records from the initial `votes` table into normalized `ballots` and `ballot_selections`:
+
+```sql
+-- Step 1: Migrate unique ballots from votes into ballots
+INSERT INTO ballots (user_id, decision_id, created_at, updated_at)
+SELECT v.user_id, v.decision_id, MIN(v.created_at), MIN(v.updated_at)
+FROM votes v
+GROUP BY v.user_id, v.decision_id;
+
+-- Step 2: Migrate selections into ballot_selections matching the created ballot
+INSERT INTO ballot_selections (ballot_id, option_id, decision_id, rating, created_at, updated_at)
+SELECT b.id, v.option_id, v.decision_id, NULL, v.created_at, v.updated_at
+FROM votes v
+JOIN ballots b ON b.user_id = v.user_id AND b.decision_id = v.decision_id;
+
+-- Step 3: Archive or deprecate the legacy votes table after verification
+-- (DROP TABLE votes; executed only after verifying migration counts)
+```
+
+---
+
+## 5. MySQL Installation & Environment Setup
+
+1. **Verify Connectivity**:
    ```powershell
    Test-NetConnection -ComputerName localhost -Port 3306
    ```
+2. **Environment Variables**:
+   ```powershell
+   $env:DB_USERNAME="root"
+   $env:DB_PASSWORD="your_mysql_password"
+   $env:DB_URL="jdbc:mysql://localhost:3306/decisionhub?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+   ```
 
 ---
 
-## 5. Environment Variable Configuration
+## 6. Running Tests & Package Build
 
-`src/main/resources/application.properties` **strictly requires** database credentials to be supplied via environment variables. There are **no hardcoded fallback credentials** (`root/root`) in the runtime configuration.
-
-### Environment Variables
-
-| Variable Name | Required? | Description | Example Value |
-| :--- | :--- | :--- | :--- |
-| `DB_USERNAME` | **Yes (Required)** | MySQL Database Username | `root` |
-| `DB_PASSWORD` | **Yes (Required)** | MySQL Database Password | `your_mysql_password` |
-| `DB_URL` | Optional | JDBC Connection String | `jdbc:mysql://localhost:3306/decisionhub?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` |
-| `CORS_ALLOWED_ORIGINS` | Optional | Comma-separated allowed frontend origins | `http://localhost:3000,http://localhost:5173` |
-
-### Setting Environment Variables in Windows PowerShell
-
-To set environment variables for the current PowerShell session:
-```powershell
-$env:DB_USERNAME="root"
-$env:DB_PASSWORD="your_mysql_password"
-$env:DB_URL="jdbc:mysql://localhost:3306/decisionhub?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-$env:CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:5173"
-```
-
-To set persistent User environment variables in Windows (survives reboots):
-```powershell
-[System.Environment]::SetEnvironmentVariable('DB_USERNAME', 'root', 'User')
-[System.Environment]::SetEnvironmentVariable('DB_PASSWORD', 'your_mysql_password', 'User')
-```
-
----
-
-## 6. Running the Application
-
-Ensure Java 21, MySQL, and the required environment variables are set, then start the application using the Maven wrapper:
-
-```powershell
-cd backend
-$env:DB_USERNAME="root"
-$env:DB_PASSWORD="your_mysql_password"
-.\mvnw.cmd spring-boot:run
-```
-
-The application starts on port `8080` by default. Verify the health check endpoint:
-```
-GET http://localhost:8080/api/v1/health
-```
-
----
-
-## 7. Running Tests
-
-To compile and execute the complete test suite (application context, health controllers, and transactional database persistence tests against MySQL):
-
+To run the entire 24-test suite:
 ```powershell
 cd backend
 .\mvnw.cmd test
 ```
 
-To package the executable production JAR:
-
+To build the executable production JAR:
 ```powershell
 cd backend
-.\mvnw.cmd package -DskipTests
+.\mvnw.cmd package
 ```
 Output artifact: `target/backend-0.0.1-SNAPSHOT.jar`
