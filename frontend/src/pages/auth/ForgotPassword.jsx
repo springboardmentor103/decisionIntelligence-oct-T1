@@ -5,6 +5,7 @@ import InputField from '../../components/InputField'
 import { isDemoMode } from '../../services/api'
 import { requestPasswordReset } from '../../services/authService'
 import { validateEmail } from '../../utils/validation'
+import AuthShowcase from '../../components/AuthShowcase'
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('')
@@ -36,40 +37,42 @@ export default function ForgotPassword() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card">
-        <p className="eyebrow">Reset access</p>
-        <h1>Forgot password</h1>
-        <p className="auth-subtitle">Enter your email to receive instructions to reset your password.</p>
-        {isDemoMode ? (
-          <p className="demo-notice" role="status">
-            Demo mode is active. Password reset is simulated; no email will be sent.
-          </p>
-        ) : null}
+      <AuthShowcase />
+      <main className="auth-main">
+        <div className="auth-card">
+          <h1>Forgot password</h1>
+          <p className="auth-subtitle">Enter your email to receive instructions to reset your password.</p>
+          {isDemoMode ? (
+            <p className="demo-notice" role="status">
+              Demo mode is active. Password reset is simulated; no email will be sent.
+            </p>
+          ) : null}
 
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <InputField
-            label="Email address"
-            id="reset-email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-          />
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <InputField
+              label="Email address"
+              id="reset-email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
 
-          {error ? <p className="form-alert" role="alert">{error}</p> : null}
-          {status ? <p className="form-success">{status}</p> : null}
+            {error ? <p className="form-alert" role="alert">{error}</p> : null}
+            {status ? <p className="form-success">{status}</p> : null}
 
-          <Button type="submit" className="full-width" disabled={isSubmitting}>
-            {isSubmitting ? 'Sending...' : 'Send reset link'}
-          </Button>
-        </form>
+            <Button type="submit" className="full-width" disabled={isSubmitting}>
+              {isSubmitting ? 'Sending...' : 'Send reset link'}
+            </Button>
+          </form>
 
-        <div className="auth-links">
-          <Link to="/login">Back to sign in</Link>
-          <Link to="/register">Create an account</Link>
+          <div className="auth-links">
+            <Link to="/login">Back to sign in</Link>
+            <Link to="/register">Create an account</Link>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

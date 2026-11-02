@@ -66,6 +66,10 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('decisionhub-user')
   }, [])
 
+  const updateUser = useCallback((updates) => {
+    setUser((current) => (current ? { ...current, ...updates } : current))
+  }, [])
+
   const value = useMemo(
     () => ({
       user,
@@ -74,8 +78,9 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(user),
       login,
       logout,
+      updateUser,
     }),
-    [user, isLoading, authNotice, login, logout],
+    [user, isLoading, authNotice, login, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

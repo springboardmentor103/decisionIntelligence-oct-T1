@@ -2,6 +2,15 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/Dashboard'
+import ExploreDecisions from './pages/ExploreDecisions'
+import MyDecisions from './pages/MyDecisions'
+import CreateDecision from './pages/CreateDecision'
+import CompareOptions from './pages/CompareOptions'
+import Community from './pages/Community'
+import Notifications from './pages/Notifications'
+import About from './pages/About'
+import Settings from './pages/Settings'
+import DecisionDetails from './pages/DecisionDetails'
 import NotFound from './pages/NotFound'
 import Profile from './pages/Profile'
 import RoleWorkspace from './pages/RoleWorkspace'
@@ -27,7 +36,16 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/explore" element={<ExploreDecisions />} />
+          <Route path="/my-decisions" element={<MyDecisions />} />
+          <Route path="/create-decision" element={<CreateDecision />} />
+          <Route path="/compare-options" element={<CompareOptions />} />
+          <Route path="/community" element={<Community />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/about" element={<About />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/decision/:decisionId" element={<DecisionDetails />} />
           <Route
             path="/moderation"
             element={

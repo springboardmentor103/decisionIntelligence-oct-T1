@@ -4,6 +4,7 @@ import Button from '../../components/Button'
 import InputField from '../../components/InputField'
 import { resetPassword } from '../../services/authService'
 import { validatePassword, validatePasswordsMatch } from '../../utils/validation'
+import AuthShowcase from '../../components/AuthShowcase'
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams()
@@ -52,40 +53,42 @@ export default function ResetPassword() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card">
-        <p className="eyebrow">Reset access</p>
-        <h1>Choose a new password</h1>
-        <p className="auth-subtitle">Create a new password for your DecisionHub account.</p>
+      <AuthShowcase />
+      <main className="auth-main">
+        <div className="auth-card">
+          <h1>Choose a new password</h1>
+          <p className="auth-subtitle">Create a new password for your DecisionHub account.</p>
 
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <InputField
-            label="New password"
-            id="new-password"
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={onChange}
-            autoComplete="new-password"
-          />
-          <InputField
-            label="Confirm new password"
-            id="confirm-new-password"
-            name="confirmPassword"
-            type="password"
-            value={form.confirmPassword}
-            onChange={onChange}
-            autoComplete="new-password"
-          />
-          {error ? <p className="form-alert" role="alert">{error}</p> : null}
-          <Button type="submit" className="full-width" disabled={isSubmitting}>
-            {isSubmitting ? 'Updating password...' : 'Update password'}
-          </Button>
-        </form>
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <InputField
+              label="New password"
+              id="new-password"
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={onChange}
+              autoComplete="new-password"
+            />
+            <InputField
+              label="Confirm new password"
+              id="confirm-new-password"
+              name="confirmPassword"
+              type="password"
+              value={form.confirmPassword}
+              onChange={onChange}
+              autoComplete="new-password"
+            />
+            {error ? <p className="form-alert" role="alert">{error}</p> : null}
+            <Button type="submit" className="full-width" disabled={isSubmitting}>
+              {isSubmitting ? 'Updating password...' : 'Update password'}
+            </Button>
+          </form>
 
-        <div className="auth-links">
-          <Link to="/login">Back to sign in</Link>
+          <div className="auth-links">
+            <Link to="/login">Back to sign in</Link>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

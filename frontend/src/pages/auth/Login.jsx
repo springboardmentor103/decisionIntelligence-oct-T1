@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { isDemoMode } from '../../services/api'
 import { loginUser } from '../../services/authService'
 import { validateEmail, validatePassword } from '../../utils/validation'
+import AuthShowcase from '../../components/AuthShowcase'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -48,22 +49,17 @@ export default function Login() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-card">
-        <p className="eyebrow">DecisionHub</p>
-        <h1>Welcome back</h1>
-        <p className="auth-subtitle">Sign in to continue to your community workspace.</p>
-        {location.state?.notice ? (
-          <p className="form-success" role="status">{location.state.notice}</p>
-        ) : null}
-        {authNotice ? <p className="form-alert" role="status">{authNotice}</p> : null}
-        {isDemoMode ? (
-          <p className="demo-notice" role="status">
-            Demo mode is active. This sign-in is simulated and does not authenticate with a backend.
-          </p>
-        ) : null}
+      <AuthShowcase />
+      <main className="auth-main">
+        <div className="auth-card">
+          <h1>Welcome back</h1>
+          <p className="auth-subtitle">Sign in to continue to your DecisionHub workspace.</p>
+          {location.state?.notice ? <p className="form-success" role="status">{location.state.notice}</p> : null}
+          {authNotice ? <p className="form-alert" role="status">{authNotice}</p> : null}
+          {isDemoMode ? <p className="demo-notice" role="status">Demo mode is active. This sign-in is simulated.</p> : null}
 
-        <form className="auth-form" onSubmit={handleSubmit} noValidate>
-          <InputField
+          <form className="auth-form" onSubmit={handleSubmit} noValidate>
+            <InputField
             label="Email address"
             id="email"
             type="email"
@@ -72,9 +68,8 @@ export default function Login() {
             onChange={onChange}
             placeholder="you@example.com"
             autoComplete="email"
-          />
-
-          <InputField
+            />
+            <InputField
             label="Password"
             id="password"
             type="password"
@@ -83,25 +78,24 @@ export default function Login() {
             onChange={onChange}
             placeholder="Enter your password"
             autoComplete="current-password"
-          />
+            />
 
-          {error ? <p className="form-alert" role="alert">{error}</p> : null}
+            {error ? <p className="form-alert" role="alert">{error}</p> : null}
 
-          <Button type="submit" className="full-width" disabled={isSubmitting}>
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
-          </Button>
-        </form>
+            <Button type="submit" className="full-width auth-submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </form>
 
-        <div className="auth-links">
-          <Link to="/forgot-password">Forgot password?</Link>
-          <Link to="/register">Create an account</Link>
+          <div className="auth-links auth-links--center">
+            <Link to="/forgot-password">Forgot password?</Link>
+            <span>New to DecisionHub? <Link to="/register">Create an account</Link></span>
+          </div>
+          {!isDemoMode && import.meta.env.VITE_GOOGLE_OAUTH_URL ? (
+            <a className="button button--secondary full-width oauth-button" href={import.meta.env.VITE_GOOGLE_OAUTH_URL}>Continue with Google</a>
+          ) : null}
         </div>
-        {!isDemoMode && import.meta.env.VITE_GOOGLE_OAUTH_URL ? (
-          <a className="button button--secondary full-width oauth-button" href={import.meta.env.VITE_GOOGLE_OAUTH_URL}>
-            Continue with Google
-          </a>
-        ) : null}
-      </div>
+      </main>
     </div>
   )
 }
