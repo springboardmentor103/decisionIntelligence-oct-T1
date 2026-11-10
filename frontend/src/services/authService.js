@@ -31,20 +31,19 @@ const getApiErrorMessage = (error) => {
 
 const normalizeAuthResponse = (data) => {
   const token = data?.token || data?.accessToken
-  const user = data?.user
 
-  if (typeof token !== 'string' || !token || !user || typeof user !== 'object') {
-    throw new Error('The server returned an unexpected authentication response.')
+  if (!token) {
+    throw new Error('The server did not return a valid authentication token.')
   }
 
-  const roles = normalizeRoles(
-    Array.isArray(user.roles) && user.roles.length ? user.roles : user.role,
-  )
+  const roles = normalizeRoles(data.role)
 
   return {
     token,
     user: {
-      ...user,
+      id: data.userId,
+      name: data.fullName,
+      email: data.email,
       role: roles[0] || 'user',
       roles,
     },
@@ -73,7 +72,7 @@ export const loginUser = async ({ email, password }) => {
 
   let response
   try {
-    response = await api.post('/auth/login', { email, password })
+    response = await api.post('/v1/auth/login', { email, password })
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
@@ -81,28 +80,30 @@ export const loginUser = async ({ email, password }) => {
   return normalizeAuthResponse(response.data)
 }
 
-export const registerUser = async ({ name, email, password }) => {
-  if (!name || !email || !password) {
+export const registerUser = async ({ fullName, email, password }) => {
+  if (!fullName || !email || !password) {
     throw new Error('Please complete all registration fields.')
   }
 
   if (isDemoMode) {
     return {
       token: null,
-      user: buildDemoUser({ name, email }),
+      user: buildDemoUser({ name: fullName, email }),
     }
   }
 
-  let response
   try {
-    response = await api.post('/auth/register', { name, email, password })
+    const response = await api.post('/v1/auth/register', {
+      fullName,
+      email,
+      password,
+    })
+
+    return response.data
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
-
-  return normalizeAuthResponse(response.data)
 }
-
 export const requestPasswordReset = async ({ email }) => {
   if (!email) {
     throw new Error('Please enter your email address.')
@@ -121,7 +122,6 @@ export const requestPasswordReset = async ({ email }) => {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
 }
-
 export const resetPassword = async ({ token, newPassword }) => {
   if (!token || !newPassword) {
     throw new Error('A reset token and new password are required.')

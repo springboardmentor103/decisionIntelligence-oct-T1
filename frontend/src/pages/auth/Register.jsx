@@ -35,7 +35,7 @@ export default function Register() {
       return
     }
     if (!validatePassword(form.password)) {
-      setError('Password must be at least 6 characters long.')
+      setError('Password must be at least 8characters long.')
       return
     }
     if (!validatePasswordsMatch(form.password, form.confirmPassword)) {
@@ -50,10 +50,21 @@ export default function Register() {
     setError('')
     setIsSubmitting(true)
     try {
-      const response = await registerUser({ name, email: form.email, password: form.password })
-      login(response.user, response.token)
-      navigate('/dashboard')
-    } catch (submitError) {
+      const response = await registerUser({
+       fullName: name,
+       email: form.email,
+       password: form.password,
+})
+
+if (isDemoMode) {
+  login(response.user, response.token)
+  navigate('/dashboard')
+} else {
+  navigate('/login')
+}
+}
+    
+     catch (submitError) {
       setError(submitError.message || 'Unable to create your account right now.')
     } finally {
       setIsSubmitting(false)
@@ -79,7 +90,7 @@ export default function Register() {
             </div>
             <InputField label="Email Address" id="email" type="email" name="email" value={form.email} onChange={onChange} placeholder="you@college.edu" autoComplete="email" />
             <div className="password-field-wrap">
-              <InputField label="Password" id="password" type={passwordVisible.password ? 'text' : 'password'} name="password" value={form.password} onChange={onChange} placeholder="At least 6 characters" autoComplete="new-password" />
+              <InputField label="Password" id="password" type={passwordVisible.password ? 'text' : 'password'} name="password" value={form.password} onChange={onChange} placeholder="At least 8 characters" autoComplete="new-password" />
               <button type="button" className="password-toggle" aria-label={passwordVisible.password ? 'Hide password' : 'Show password'} onClick={() => togglePassword('password')}>
                 {passwordVisible.password ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
