@@ -12,52 +12,46 @@ export function AuthProvider({ children }) {
   const [authNotice, setAuthNotice] = useState('')
 
   useEffect(() => {
+  if (isDemoMode) {
+    setIsLoading(false)
+    return
+  }
+
+  try {
+    const token = localStorage.getItem('decisionhub-token')
+    const savedUser = localStorage.getItem('decisionhub-user')
+
+    if (token && savedUser) {
+      setAuthToken(token)
+      setUser(JSON.parse(savedUser))
+    }
+  } catch (error) {
     localStorage.removeItem('decisionhub-token')
     localStorage.removeItem('decisionhub-user')
-
-    if (isDemoMode) {
-      return undefined
-    }
-
-    let active = true
-    getCurrentUser()
-      .then((currentUser) => {
-        if (active && currentUser) {
-          setUser({
-            ...currentUser,
-            role: normalizeRoles(currentUser.roles || currentUser.role)[0] || 'user',
-            roles: normalizeRoles(currentUser.roles || currentUser.role),
-          })
-        }
-      })
-      .catch((error) => {
-        if (active && error.response?.status !== 401) {
-          setAuthNotice(error.message || 'Unable to restore your sign-in session.')
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setIsLoading(false)
-        }
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
-
+    setAuthToken(null)
+  } finally {
+    setIsLoading(false)
+  }
+}, [])
   const login = useCallback((userData, token) => {
-    const roles = normalizeRoles(userData.roles || userData.role)
-    const nextUser = {
-      ...userData,
-      role: roles[0] || 'user',
-      roles,
-    }
+  const roles = normalizeRoles(userData.roles || userData.role)
 
-    setUser(nextUser)
-    setAuthToken(token)
-    setAuthNotice('')
-  }, [])
+  const nextUser = {
+    ...userData,
+    role: roles[0] || 'user',
+    roles,
+  }
+
+  setUser(nextUser)
+  setAuthToken(token)
+
+  if (token) {
+    localStorage.setItem('decisionhub-token', token)
+    localStorage.setItem('decisionhub-user', JSON.stringify(nextUser))
+  }
+
+  setAuthNotice('')
+}, [])
 
   const logout = useCallback(() => {
     setUser(null)
