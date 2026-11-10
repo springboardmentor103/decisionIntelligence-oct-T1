@@ -1,3 +1,4 @@
+
 import api, { isDemoMode } from './api'
 import { normalizeRoles } from '../utils/roles'
 
@@ -31,20 +32,24 @@ const getApiErrorMessage = (error) => {
 
 const normalizeAuthResponse = (data) => {
   const token = data?.token || data?.accessToken
-  const user = data?.user
 
-  if (typeof token !== 'string' || !token || !user || typeof user !== 'object') {
-    throw new Error('The server returned an unexpected authentication response.')
+  if (typeof token !== 'string' || !token) {
+    throw new Error('The server did not return an authentication token.')
   }
 
+  const userData = data?.user || data
+
   const roles = normalizeRoles(
-    Array.isArray(user.roles) && user.roles.length ? user.roles : user.role,
+    userData.roles || userData.role,
   )
 
   return {
     token,
     user: {
-      ...user,
+      ...userData,
+      id: userData.userId || userData.id,
+      name: userData.fullName || userData.name,
+      fullName: userData.fullName || userData.name,
       role: roles[0] || 'user',
       roles,
     },
@@ -71,14 +76,16 @@ export const loginUser = async ({ email, password }) => {
     }
   }
 
-  let response
   try {
-    response = await api.post('/auth/login', { email, password })
+    const response = await api.post('/auth/login', {
+      email,
+      password,
+    })
+
+    return normalizeAuthResponse(response.data)
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
-
-  return normalizeAuthResponse(response.data)
 }
 
 export const registerUser = async ({ name, email, password }) => {
@@ -93,14 +100,17 @@ export const registerUser = async ({ name, email, password }) => {
     }
   }
 
-  let response
   try {
-    response = await api.post('/auth/register', { name, email, password })
+    const response = await api.post('/auth/register', {
+      fullName: name,
+      email,
+      password,
+    })
+
+    return response.data
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
-
-  return normalizeAuthResponse(response.data)
 }
 
 export const requestPasswordReset = async ({ email }) => {
@@ -132,7 +142,11 @@ export const resetPassword = async ({ token, newPassword }) => {
   }
 
   try {
-    const response = await api.post('/auth/reset-password', { token, newPassword })
+    const response = await api.post('/auth/reset-password', {
+      token,
+      newPassword,
+    })
+
     return response.data
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
@@ -140,7 +154,6 @@ export const resetPassword = async ({ token, newPassword }) => {
 }
 
 export const getCurrentUser = async () => {
-  await api.get('/auth/csrf')
   const response = await api.get('/auth/me')
   return response.data
 }
@@ -150,6 +163,5 @@ export const logoutUser = async () => {
     return
   }
 
-  await api.get('/auth/csrf')
   await api.post('/auth/logout')
 }

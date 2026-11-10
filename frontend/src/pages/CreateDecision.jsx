@@ -20,7 +20,7 @@ export default function CreateDecision() {
   const navigate = useNavigate()
   const { saveDecision } = useDecisions()
   const [form, setForm] = useState(editing || defaultForm)
-  const [optionDraft, setOptionDraft] = useState({ title: '', description: '' })
+  const [optionDraft, setOptionDraft] = useState({ title: '', description: '', pros: '', cons: '' })
   const [criterionDraft, setCriterionDraft] = useState({ name: '', weight: '' })
   const [error, setError] = useState('')
   const totalWeight = form.criteria.reduce((total, criterion) => total + Number(criterion.weight), 0)
@@ -32,8 +32,14 @@ export default function CreateDecision() {
       setError('Add an option title before adding it.')
       return
     }
-    updateForm('options', [...form.options, { ...optionDraft, scores: {} }])
-    setOptionDraft({ title: '', description: '' })
+    updateForm('options', [...form.options, {
+      title: optionDraft.title.trim(),
+      description: optionDraft.description.trim(),
+      pros: optionDraft.pros.split('\n').map((item) => item.trim()).filter(Boolean),
+      cons: optionDraft.cons.split('\n').map((item) => item.trim()).filter(Boolean),
+      scores: {},
+    }])
+    setOptionDraft({ title: '', description: '', pros: '', cons: '' })
     setError('')
   }
 
@@ -122,12 +128,14 @@ export default function CreateDecision() {
 
       <section className="form-panel panel-card">
         <h2>Options <span className="muted-count">({form.options.length} added)</span></h2>
-        <div className="repeat-entry">
+        <div className="repeat-entry option-entry">
           <label className="form-control">Option Title<input value={optionDraft.title} onChange={(event) => setOptionDraft({ ...optionDraft, title: event.target.value })} placeholder="e.g. Option A" /></label>
           <label className="form-control">Option Description<input value={optionDraft.description} onChange={(event) => setOptionDraft({ ...optionDraft, description: event.target.value })} placeholder="Short summary" /></label>
+          <label className="form-control">Pros <span className="muted-count">(one per line)</span><textarea rows="2" value={optionDraft.pros} onChange={(event) => setOptionDraft({ ...optionDraft, pros: event.target.value })} placeholder="What works well about this option?" /></label>
+          <label className="form-control">Cons <span className="muted-count">(one per line)</span><textarea rows="2" value={optionDraft.cons} onChange={(event) => setOptionDraft({ ...optionDraft, cons: event.target.value })} placeholder="What are the trade-offs?" /></label>
           <button type="button" className="button button--dark button--small" onClick={addOption}><Plus size={15} /> Add Option</button>
         </div>
-        {form.options.length > 0 ? <ul className="created-items">{form.options.map((option, index) => <li key={`${option.title}-${index}`}><span>{option.title}<small>{option.description}</small></span><button type="button" aria-label={`Remove ${option.title}`} onClick={() => updateForm('options', form.options.filter((_, optionIndex) => optionIndex !== index))}><Trash2 size={15} /></button></li>)}</ul> : null}
+        {form.options.length > 0 ? <ul className="created-items">{form.options.map((option, index) => <li key={`${option.title}-${index}`}><span>{option.title}<small>{option.description}</small><small>{(option.pros || []).length} pros · {(option.cons || []).length} cons</small></span><button type="button" aria-label={`Remove ${option.title}`} onClick={() => updateForm('options', form.options.filter((_, optionIndex) => optionIndex !== index))}><Trash2 size={15} /></button></li>)}</ul> : null}
       </section>
 
       <section className="form-panel panel-card">

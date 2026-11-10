@@ -48,7 +48,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-shell">
+    <div className="auth-shell auth-shell--login">
       <AuthShowcase />
       <main className="auth-main">
         <div className="auth-card">

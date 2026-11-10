@@ -7,6 +7,12 @@ import MyDecisions from './pages/MyDecisions'
 import CreateDecision from './pages/CreateDecision'
 import CompareOptions from './pages/CompareOptions'
 import Community from './pages/Community'
+import Communities from './pages/Communities'
+import CommunityDetails from './pages/CommunityDetails'
+import Vote from './pages/Vote'
+import Polls from './pages/Polls'
+import CreatePoll from './pages/CreatePoll'
+import PollResults from './pages/PollResults'
 import Notifications from './pages/Notifications'
 import About from './pages/About'
 import Settings from './pages/Settings'
@@ -41,6 +47,12 @@ function App() {
           <Route path="/create-decision" element={<CreateDecision />} />
           <Route path="/compare-options" element={<CompareOptions />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/communities" element={<Communities />} />
+          <Route path="/communities/:communityId" element={<CommunityDetails />} />
+          <Route path="/vote/:decisionId" element={<Vote />} />
+          <Route path="/polls" element={<Polls />} />
+          <Route path="/polls/create" element={<CreatePoll />} />
+          <Route path="/polls/:pollId/results" element={<PollResults />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/about" element={<About />} />
           <Route path="/profile" element={<Profile />} />

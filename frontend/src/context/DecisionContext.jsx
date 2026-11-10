@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-const initialDecisions = [
+const sampleDecisions = [
   {
     id: 'decision-1',
     title: 'Final-Year Project Tech Stack',
@@ -139,6 +139,22 @@ const initialDecisions = [
   },
 ]
 
+const loadStoredArray = (key) => {
+  const stored = localStorage.getItem(key)
+  if (!stored) return []
+
+  const value = JSON.parse(stored)
+  if (!Array.isArray(value)) {
+    throw new Error(`Saved ${key} data must be an array.`)
+  }
+  return value
+}
+
+const initialDecisions = [
+  ...sampleDecisions.map((decision) => ({ ...decision, isSample: true })),
+  ...loadStoredArray('decisionhub-created-decisions').map((decision) => ({ ...decision, isSample: false })),
+]
+
 const initialPosts = [
   {
     id: 'post-1',
@@ -177,11 +193,65 @@ const initialPosts = [
   },
 ]
 
+const initialPolls = [
+  {
+    id: 'poll-campus-event',
+    title: 'Which workshop should we host next?',
+    description: 'Help the campus tech community choose its next hands-on session.',
+    options: ['AI for Everyone', 'Build with React', 'Career Portfolio Clinic'],
+    votes: { 'AI for Everyone': 18, 'Build with React': 27, 'Career Portfolio Clinic': 12 },
+    closesAt: '2026-12-15',
+    creator: 'Meera Iyer',
+  },
+]
+
+const initialCommunities = [
+  {
+    id: 'technology',
+    name: 'Technology & Product',
+    category: 'Technology',
+    description: 'Compare tools, plan projects and make better product decisions together.',
+    members: 1240,
+    decisions: 38,
+    privacy: 'Public',
+  },
+  {
+    id: 'campus-life',
+    name: 'Campus Life',
+    category: 'Campus',
+    description: 'Make campus events, clubs and student life work better for everyone.',
+    members: 864,
+    decisions: 26,
+    privacy: 'Public',
+  },
+  {
+    id: 'career-growth',
+    name: 'Career Growth',
+    category: 'Career',
+    description: 'Discuss internships, career paths and the choices that shape your future.',
+    members: 978,
+    decisions: 31,
+    privacy: 'Public',
+  },
+  {
+    id: 'travel-planning',
+    name: 'Travel Planning',
+    category: 'Travel',
+    description: 'Plan group trips with clear options, budgets and shared priorities.',
+    members: 542,
+    decisions: 19,
+    privacy: 'Public',
+  },
+]
+
 const DecisionContext = createContext(null)
 
 export function DecisionProvider({ children }) {
   const [decisions, setDecisions] = useState(initialDecisions)
   const [posts, setPosts] = useState(initialPosts)
+  const [polls, setPolls] = useState(initialPolls)
+  const [communities] = useState(initialCommunities)
+  const [joinedCommunities, setJoinedCommunities] = useState(['technology'])
   const [notifications, setNotifications] = useState([
     { id: 'notification-1', text: 'Reminder: cast your vote on “Where Should We Hold the Annual Tech Fest?”', time: '10 min ago', type: 'vote', unread: true },
     { id: 'notification-2', text: 'Priya Nair replied to your comment in “Final-Year Project Tech Stack”', time: '2h ago', type: 'reply', unread: true },
@@ -189,21 +259,54 @@ export function DecisionProvider({ children }) {
     { id: 'notification-4', text: '“Group Trip Destination for December” closes in 3 days', time: 'Yesterday', type: 'deadline', unread: false },
     { id: 'notification-5', text: 'Results published for “Monthly Budget Tracking Tool”', time: '3 days ago', type: 'results', unread: false },
   ])
-  const [votes, setVotes] = useState({})
+  const [votes, setVotes] = useState(() => {
+    const stored = localStorage.getItem('decisionhub-votes')
+    return stored ? JSON.parse(stored) : {}
+  })
+  const [activityEvents, setActivityEvents] = useState(() => loadStoredArray('decisionhub-activity'))
+
+  useEffect(() => {
+    localStorage.setItem(
+      'decisionhub-created-decisions',
+      JSON.stringify(decisions.filter((decision) => !decision.isSample)),
+    )
+  }, [decisions])
+
+  useEffect(() => {
+    localStorage.setItem('decisionhub-votes', JSON.stringify(votes))
+  }, [votes])
+
+  useEffect(() => {
+    localStorage.setItem('decisionhub-activity', JSON.stringify(activityEvents))
+  }, [activityEvents])
 
   const saveDecision = useCallback((decision, shouldPublish = true) => {
+    const existing = decisions.some((item) => item.id === decision.id)
+    const saved = { ...decision, isSample: false, status: shouldPublish ? 'Active' : 'Draft' }
     setDecisions((current) => {
-      const existing = current.some((item) => item.id === decision.id)
-      const saved = { ...decision, status: shouldPublish ? 'Active' : 'Draft' }
       return existing
         ? current.map((item) => (item.id === saved.id ? saved : item))
         : [saved, ...current]
     })
+    if (!existing) {
+      setActivityEvents((events) => [...events, {
+        type: 'decision',
+        title: saved.title,
+        timestamp: new Date().toISOString(),
+      }])
+    }
     return decision.id
-  }, [])
+  }, [decisions])
 
   const castVote = useCallback((decisionId, optionTitle) => {
+    if (votes[decisionId]) return false
     setVotes((current) => ({ ...current, [decisionId]: optionTitle }))
+    const decision = decisions.find((item) => item.id === decisionId)
+    setActivityEvents((events) => [...events, {
+      type: 'vote',
+      title: decision?.title || 'a decision',
+      timestamp: new Date().toISOString(),
+    }])
     setDecisions((current) =>
       current.map((decision) =>
         decision.id === decisionId
@@ -211,6 +314,30 @@ export function DecisionProvider({ children }) {
           : decision,
       ),
     )
+    return true
+  }, [decisions, votes])
+
+  const createPoll = useCallback((poll) => {
+    setPolls((current) => [poll, ...current])
+  }, [])
+
+  const castPollVote = useCallback((pollId, option) => {
+    if (votes[`poll:${pollId}`]) return false
+    setVotes((current) => ({ ...current, [`poll:${pollId}`]: option }))
+    const poll = polls.find((item) => item.id === pollId)
+    setActivityEvents((events) => [...events, {
+      type: 'vote',
+      title: poll?.title || 'a poll',
+      timestamp: new Date().toISOString(),
+    }])
+    setPolls((current) => current.map((poll) => poll.id === pollId
+      ? { ...poll, votes: { ...poll.votes, [option]: (poll.votes[option] || 0) + 1 } }
+      : poll))
+    return true
+  }, [polls, votes])
+
+  const joinCommunity = useCallback((communityId) => {
+    setJoinedCommunities((current) => current.includes(communityId) ? current : [...current, communityId])
   }, [])
 
   const toggleLike = useCallback((postId) => {
@@ -241,16 +368,23 @@ export function DecisionProvider({ children }) {
     () => ({
       decisions,
       posts,
+      polls,
+      communities,
+      joinedCommunities,
       notifications,
       votes,
+      activityEvents,
       saveDecision,
       castVote,
+      createPoll,
+      castPollVote,
+      joinCommunity,
       toggleLike,
       addPost,
       addReply,
       markAllRead,
     }),
-    [decisions, posts, notifications, votes, saveDecision, castVote, toggleLike, addPost, addReply, markAllRead],
+    [decisions, posts, polls, communities, joinedCommunities, notifications, votes, activityEvents, saveDecision, castVote, createPoll, castPollVote, joinCommunity, toggleLike, addPost, addReply, markAllRead],
   )
 
   return <DecisionContext.Provider value={value}>{children}</DecisionContext.Provider>
