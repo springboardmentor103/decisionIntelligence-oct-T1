@@ -1,4 +1,3 @@
-
 package com.decisionhub.backend.security;
 
 import io.jsonwebtoken.Claims;
@@ -68,3 +67,4 @@ public class JwtService {
         }
     }
 }
+
