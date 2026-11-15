@@ -113,7 +113,7 @@ export default function Register() {
   }
 
   return (
-    <div className="auth-shell">
+    <div className="auth-shell auth-shell--expanded">
       <AuthShowcase />
 
       <main className="auth-main">
