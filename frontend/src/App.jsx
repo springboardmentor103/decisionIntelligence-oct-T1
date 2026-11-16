@@ -27,17 +27,24 @@ import Register from './pages/auth/Register'
 import ResetPassword from './pages/auth/ResetPassword'
 import Unauthorized from './pages/Unauthorized'
 import './App.css'
+import Home from './pages/Home';
+import About1 from "./pages/About1";
+import Features from "./pages/Features.jsx";
+
 
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/about" element={<About1 />} />
+      <Route path="/features" element={<Features />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* <Route path="/" element={<Navigate to="/dashboard" replace />} /> */}
 
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>

@@ -604,3 +604,55 @@ fieldset.form-control legend { padding: 0; margin-bottom: 7px; }
   .auth-shell--expanded .auth-card--register .form-input { min-height: 50px; }
   .auth-shell--expanded .register-form { gap: 14px; }
 }
+/* Create Account page */
+.auth-shell .auth-card {
+  max-width: 500px;
+  padding: 25px;
+}
+
+.auth-shell .auth-card h1 {
+  font-size: 24px;
+}
+
+.auth-shell .auth-form {
+  gap: 12px;
+}
+/* Main heading */
+.auth-showcase-content h2 {
+  font-size: 38px;
+  line-height: 1.3;
+  font-weight: 800;
+  margin-bottom: 14px;
+  transform: translateY(-8px);
+}
+
+/* Supporting tagline */
+.auth-showcase-content p {
+  font-size: 17px;
+  line-height: 1.5;
+  margin-top: 0;
+  transform: translateY(-8px);
+}
+@media (max-width: 768px) {
+  .auth-showcase-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .auth-showcase-content h2,
+  .auth-showcase-content p {
+    position: relative;
+    z-index: 2;
+  }
+
+  .decision-illustration {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    margin-top: 15px;
+  }
+}

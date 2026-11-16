@@ -2,9 +2,30 @@ export default function AuthShowcase() {
   return (
     <aside className="auth-showcase">
       <a className="auth-brand" href="/login">
-        <span className="brand-mark">D<span>!</span></span>
-        <span>Decision<span className="brand-accent">Hub</span></span>
-      </a>
+  <svg
+    className="auth-brand-icon"
+    viewBox="0 0 52 52"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M7 7 H23 C39 7 39 45 23 45 H7 Z"
+      fill="none"
+      stroke="#14213D"
+      strokeWidth="5"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M43 7 V45"
+      stroke="#14B8A6"
+      strokeWidth="5"
+      strokeLinecap="square"
+    />
+  </svg>
+
+  <span className="auth-brand-name">
+    Decision<span>Hub</span>
+  </span>
+</a>
       <div className="auth-showcase-content">
         <h2>Make Better Decisions <span>Together.</span></h2>
         <p>Turn ideas into informed decisions.</p>
