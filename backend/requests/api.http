@@ -66,7 +66,7 @@ Content-Type: {{contentType}}
 }
 
 ### Store the JWT token from login response
-@authToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZUBleGFtcGxlLmNvbSIsImlhdCI6MTc5NDcyNDczNCwiZXhwIjoxNzk0ODExMTM0fQ.eEWPIM1AxO2xB3mIIqJVu5Ur71zj1EoV6-2rOoJCp74
+@authToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZUBleGFtcGxlLmNvbSIsImlhdCI6MTc5NDgyNjkyMywiZXhwIjoxNzk0OTEzMzIzfQ.6VQLZvsnOqURT7TKMRORwkprUS6FIqNO94tUmiuR5u4
 
 ### 2.5 Login User - Incorrect Password (Expected: 401 Unauthorized)
 POST {{baseUrl}}/api/v1/auth/login HTTP/1.1
@@ -136,7 +136,7 @@ Authorization: Bearer {{authToken}}
 }
 
 ### Store the created decision ID
-@decisionId = {{createDecision.response.body.data.id}}
+@decisionId = 229
 
 ### 4.2 Create Decision - Validation Failure (Blank fields, Expected: 400 Bad Request)
 POST {{baseUrl}}/api/v1/decisions HTTP/1.1
@@ -221,11 +221,15 @@ Authorization: Bearer {{authToken}}
 }
 
 ### 5.2 Retrieve All Options for Decision
+# @name getOptions
 GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options HTTP/1.1
 Authorization: Bearer {{authToken}}
 
+### Store Option ID (Use the ID of an option returned in Step 5.2 or Step 4.1 above)
+@optionId = 174
+
 ### 5.3 Update Option within Decision
-PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/1 HTTP/1.1
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}} HTTP/1.1
 Content-Type: {{contentType}}
 Authorization: Bearer {{authToken}}
 
@@ -246,5 +250,166 @@ Authorization: Bearer {{authToken}}
 }
 
 ### 5.5 Delete Option within Decision
-DELETE {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/1 HTTP/1.1
+DELETE {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+
+### ==============================================================================
+### 6. OPTION COMPARISON & EVALUATION MATRIX (MILESTONE 2 - PHASE 2)
+### ==============================================================================
+
+### 6.1 Initialize Default Comparison Criteria (COST, BENEFITS, RISK, TIME, CONVENIENCE)
+# @name createDefaultCriteria
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/criteria/default HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.2 Create Custom Comparison Criterion (e.g. Scalability)
+# @name createCustomCriterion
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/criteria HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "SCALABILITY",
+  "description": "Ability to handle 10x traffic bursts with linear resource scaling",
+  "weight": 20.0,
+  "minScore": 1.0,
+  "maxScore": 10.0,
+  "polarity": "HIGHER_IS_BETTER"
+}
+
+### Store Criterion ID
+@criterionId = 6
+
+### 6.3 Retrieve All Criteria for Decision
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/criteria HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.4 Update Criterion (Adjust weight and description)
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/criteria/{{criterionId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "SCALABILITY",
+  "description": "Horizontal and vertical autoscaling under high throughput",
+  "weight": 25.0,
+  "minScore": 1.0,
+  "maxScore": 10.0,
+  "polarity": "HIGHER_IS_BETTER"
+}
+
+### 6.5 Upsert Qualitative Comparison Data for Option
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/comparison HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "featureValues": "Single JAR deployment, JVM memory tuning, HikariCP pool",
+  "costDetails": "Low operational cost: runs on single container instance",
+  "benefitDetails": "Extremely fast development cycles, zero distributed transaction overhead",
+  "riskDetails": "Single point of failure; vertical scaling ceiling",
+  "timeDetails": "2 weeks initial MVP delivery",
+  "convenienceDetails": "Simple debugging, single Git repository, seamless IDE navigation"
+}
+
+### 6.6 Retrieve Qualitative Comparison Data for Option
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/comparison HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.7 Add Advantage (Pro) to Option
+# @name addProOption
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/pros-cons HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "type": "PRO",
+  "description": "Fast ACID transactions without distributed consensus protocols",
+  "displayOrder": 0
+}
+
+### Store Pro ID
+@proId = {{addProOption.response.body.data.id}}
+
+### 6.8 Add Disadvantage (Con) to Option
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/pros-cons HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "type": "CON",
+  "description": "Deployment coupling: all modules must restart simultaneously on update",
+  "displayOrder": 1
+}
+
+### 6.9 Retrieve All Pros and Cons for Option
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/pros-cons HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.10 Update Pro/Con Entry
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/pros-cons/{{proId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "type": "PRO",
+  "description": "Strict ACID guarantees with ultra-low latency local DB transactions",
+  "displayOrder": 0
+}
+
+### 6.11 Set Criteria Scores for Option (Modular Monolith)
+### Note: Replace criterionId values with the IDs returned from Step 6.1 or 6.3
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/scores HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "scores": [
+    {
+      "criterionId": 1,
+      "rawScore": 2.0,
+      "notes": "Very cost effective on standard VM"
+    },
+    {
+      "criterionId": 2,
+      "rawScore": 8.0,
+      "notes": "Excellent feature velocity"
+    },
+    {
+      "criterionId": 3,
+      "rawScore": 3.0,
+      "notes": "Low operational risk"
+    },
+    {
+      "criterionId": 4,
+      "rawScore": 2.0,
+      "notes": "Quick implementation timeframe"
+    },
+    {
+      "criterionId": 5,
+      "rawScore": 9.0,
+      "notes": "Highly convenient local development"
+    }
+  ]
+}
+
+### 6.12 Retrieve Option Numerical Scores
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/scores HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.13 Retrieve Complete Evaluation & Comparison Matrix
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/comparison-matrix HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.14 Retrieve Deterministic Ranked Options
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/rankings HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.15 Delete Criterion
+DELETE {{baseUrl}}/api/v1/decisions/{{decisionId}}/criteria/{{criterionId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.16 Delete Pro/Con Entry
+DELETE {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/{{optionId}}/pros-cons/{{proId}} HTTP/1.1
 Authorization: Bearer {{authToken}}

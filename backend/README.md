@@ -279,3 +279,229 @@ cd backend
 .\mvnw.cmd package
 ```
 Output artifact: `target/backend-0.0.1-SNAPSHOT.jar`
+
+
+---
+
+## 7. Option Comparison & Evaluation Matrix (Milestone 2 – Phase 2)
+
+### 1. Comparison Architecture & Entity Relationships
+
+The Option Comparison System delivers structured evaluation matrices, qualitative trade-off analyses, and deterministic multi-criteria decision rankings.
+
+```mermaid
+erDiagram
+    DECISIONS ||--o{ COMPARISON_CRITERIA : "defines (1:N)"
+    DECISIONS ||--|{ OPTIONS : "contains (1:N)"
+    OPTIONS ||--o{ OPTION_SCORES : "evaluated_in (1:N)"
+    COMPARISON_CRITERIA ||--o{ OPTION_SCORES : "rates (1:N)"
+    OPTIONS ||--o| OPTION_COMPARISONS : "describes (1:1)"
+    OPTIONS ||--o{ OPTION_PROS_CONS : "has (1:N)"
+
+    COMPARISON_CRITERIA {
+        bigint id PK
+        bigint decision_id FK
+        varchar name
+        varchar description
+        double weight
+        double min_score
+        double max_score
+        varchar polarity
+        boolean is_default
+        datetime created_at
+        datetime updated_at
+    }
+
+    OPTION_SCORES {
+        bigint id PK
+        bigint option_id FK
+        bigint criterion_id FK
+        double raw_score
+        varchar notes
+        datetime created_at
+        datetime updated_at
+    }
+
+    OPTION_COMPARISONS {
+        bigint id PK
+        bigint option_id FK UK
+        text feature_values
+        text cost_details
+        text benefit_details
+        text risk_details
+        text time_details
+        text convenience_details
+        datetime created_at
+        datetime updated_at
+    }
+
+    OPTION_PROS_CONS {
+        bigint id PK
+        bigint option_id FK
+        varchar type
+        varchar description
+        int display_order
+        datetime created_at
+        datetime updated_at
+    }
+```
+
+### 2. Multi-Criteria Scoring Formula & Normalization
+
+Given a decision with $M$ criteria $C_1, C_2, \dots, C_M$ and $N$ options $O_1, O_2, \dots, O_N$:
+
+1. **Normalized Criterion Weight**:
+   $$w_j = \frac{W_j}{\sum_{k=1}^M W_k} \quad \text{where } W_j > 0$$
+
+2. **Polarity-Aware Normalization to 0–10 Scale**:
+   For an option with score $S_{i,j} \in [\text{Min}_j, \text{Max}_j]$:
+   - **Higher is Better** (e.g. `BENEFITS`, `CONVENIENCE`, `QUALITY`):
+     $$\text{NormalizedScore}(S_{i,j}) = 10.0 \times \left( \frac{S_{i,j} - \text{Min}_j}{\text{Max}_j - \text{Min}_j} \right)$$
+   - **Lower is Better** (e.g. `COST`, `RISK`, `TIME`):
+     $$\text{NormalizedScore}(S_{i,j}) = 10.0 \times \left( \frac{\text{Max}_j - S_{i,j}}{\text{Max}_j - \text{Min}_j} \right)$$
+     *(e.g. on a 1–10 scale, an option with low raw cost score $S=1$ yields a top normalized score of $10.0$; high cost $S=10$ yields $0.0$)*
+
+3. **Missing Value Handling**:
+   Unscored criteria automatically default to the neutral midpoint fallback:
+   $$S_{i,j}^{\text{fallback}} = \frac{\text{Min}_j + \text{Max}_j}{2.0}$$
+   (e.g., $5.5$ on a 1–10 scale), flagged with `isFallback: true` in API responses.
+
+4. **Total Weighted Score**:
+   $$\text{TotalScore}_i = \sum_{j=1}^M \left( w_j \times \text{NormalizedScore}(S_{i,j}) \right) \in [0.0, 10.0]$$
+   $$\text{ScorePercentage}_i = \text{TotalScore}_i \times 10 \in [0.0\%, 100.0\%]$$
+
+5. **Deterministic Multi-Level Tie-Breaking**:
+   Options are strictly ordered by:
+   1. `totalWeightedScore` descending
+   2. Normalized score on the highest-weighted criterion descending
+   3. Option `displayOrder` ascending
+   4. Option `id` ascending
+
+### 3. Comparison System REST API Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|:---|:---|:---|:---|
+| `POST` | `/api/v1/decisions/{id}/criteria` | Create custom comparison criterion | Bearer JWT (Creator/Admin) |
+| `POST` | `/api/v1/decisions/{id}/criteria/default` | Initialize standard defaults (`COST`, `BENEFITS`, `RISK`, `TIME`, `CONVENIENCE`) | Bearer JWT (Creator/Admin) |
+| `GET` | `/api/v1/decisions/{id}/criteria` | Retrieve criteria definitions for decision | Public / Auth |
+| `PUT` | `/api/v1/decisions/{id}/criteria/{criterionId}` | Update criterion weight, scale, or polarity | Bearer JWT (Creator/Admin) |
+| `DELETE` | `/api/v1/decisions/{id}/criteria/{criterionId}` | Delete criterion and cascade remove associated scores | Bearer JWT (Creator/Admin) |
+| `PUT` | `/api/v1/decisions/{id}/options/{optId}/comparison` | Upsert qualitative feature and trade-off details | Bearer JWT (Creator/Admin) |
+| `GET` | `/api/v1/decisions/{id}/options/{optId}/comparison` | Retrieve qualitative comparison details | Public / Auth |
+| `POST` | `/api/v1/decisions/{id}/options/{optId}/scores` | Set / update numerical scores for an option | Bearer JWT (Creator/Admin) |
+| `GET` | `/api/v1/decisions/{id}/options/{optId}/scores` | Retrieve numerical scores for an option | Public / Auth |
+| `POST` | `/api/v1/decisions/{id}/options/{optId}/pros-cons` | Add advantage (`PRO`) or disadvantage (`CON`) | Bearer JWT (Creator/Admin) |
+| `GET` | `/api/v1/decisions/{id}/options/{optId}/pros-cons` | Retrieve all pros and cons for an option | Public / Auth |
+| `PUT` | `/api/v1/decisions/{id}/options/{optId}/pros-cons/{proConId}` | Update a pro or con entry | Bearer JWT (Creator/Admin) |
+| `DELETE` | `/api/v1/decisions/{id}/options/{optId}/pros-cons/{proConId}` | Delete a pro or con entry | Bearer JWT (Creator/Admin) |
+| `GET` | `/api/v1/decisions/{id}/comparison-matrix` | Generate full comparison matrix with rankings | Public / Auth |
+| `GET` | `/api/v1/decisions/{id}/rankings` | Retrieve ranked options with score breakdowns | Public / Auth |
+
+### 4. Example Request & Response Payloads
+
+#### A. Set Option Scores
+`POST /api/v1/decisions/1/options/1/scores`
+```json
+{
+  "scores": [
+    { "criterionId": 1, "rawScore": 2.0, "notes": "Very low infrastructure cost" },
+    { "criterionId": 2, "rawScore": 8.5, "notes": "High feature flexibility" },
+    { "criterionId": 3, "rawScore": 3.0, "notes": "Low operational risk" }
+  ]
+}
+```
+
+**Success Response (HTTP 200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Option scores saved successfully",
+  "data": [
+    {
+      "id": 1,
+      "optionId": 1,
+      "criterionId": 1,
+      "criterionName": "COST",
+      "rawScore": 2.0,
+      "notes": "Very low infrastructure cost",
+      "createdAt": "2026-11-16T16:15:00",
+      "updatedAt": "2026-11-16T16:15:00"
+    }
+  ],
+  "timestamp": "2026-11-16T16:15:00"
+}
+```
+
+#### B. Generate Comparison Matrix
+`GET /api/v1/decisions/1/comparison-matrix`
+
+**Success Response (HTTP 200 OK)**:
+```json
+{
+  "success": true,
+  "message": "Comparison matrix generated successfully",
+  "data": {
+    "decisionId": 1,
+    "decisionTitle": "Select Core Backend Architecture",
+    "winnerOptionTitle": "Modular Monolith",
+    "criteria": [
+      {
+        "id": 1,
+        "name": "COST",
+        "weight": 20.0,
+        "minScore": 1.0,
+        "maxScore": 10.0,
+        "polarity": "LOWER_IS_BETTER"
+      }
+    ],
+    "rankedOptions": [
+      {
+        "rank": 1,
+        "optionId": 1,
+        "title": "Modular Monolith",
+        "totalWeightedScore": 8.45,
+        "scorePercentage": 84.5,
+        "criterionScores": [
+          {
+            "criterionId": 1,
+            "criterionName": "COST",
+            "weight": 20.0,
+            "normalizedWeight": 0.2222,
+            "polarity": "LOWER_IS_BETTER",
+            "rawScore": 2.0,
+            "normalizedScore": 8.89,
+            "weightedContribution": 1.975,
+            "isFallback": false,
+            "notes": "Very low infrastructure cost"
+          }
+        ],
+        "pros": [
+          { "id": 1, "type": "PRO", "description": "Fast ACID transactions" }
+        ],
+        "cons": [
+          { "id": 2, "type": "CON", "description": "Coupled deployments" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 5. Error Cases & Validation Handling
+
+- **Score Range Exceeded (`400 Bad Request`)**:
+  ```json
+  {
+    "status": 400,
+    "error": "Bad Request",
+    "message": "Score 15.00 for criterion 'COST' is outside valid range [1.00, 10.00]",
+    "path": "/api/v1/decisions/1/options/1/scores"
+  }
+  ```
+- **Cross-Decision Mismatch (`400 Bad Request`)**:
+  Thrown when attempting to set scores or pros/cons on an option using a decision ID it does not belong to:
+  `Option with id 5 does not belong to decision 1`
+- **Duplicate Criterion Name (`400 Bad Request`)**:
+  `A criterion with the name 'COST' already exists for this decision`
+- **Unauthorized Modification (`403 Forbidden`)**:
+  `You do not have permission to modify comparison criteria or data for this decision`
