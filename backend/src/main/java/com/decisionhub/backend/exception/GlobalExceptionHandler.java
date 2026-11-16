@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,60 +22,37 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponseDto> handleResourceNotFoundException(
             ResourceNotFoundException ex, HttpServletRequest request) {
 
-        ErrorResponseDto error = ErrorResponseDto.of(
-            HttpStatus.NOT_FOUND.value(),
-            HttpStatus.NOT_FOUND.getReasonPhrase(),
-            ex.getMessage(),
-            request.getRequestURI(),
-            List.of()
-        );
-
-        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponseDto> handleBadRequestException(
             BadRequestException ex, HttpServletRequest request) {
 
-        ErrorResponseDto error = ErrorResponseDto.of(
-            HttpStatus.BAD_REQUEST.value(),
-            HttpStatus.BAD_REQUEST.getReasonPhrase(),
-            ex.getMessage(),
-            request.getRequestURI(),
-            List.of()
-        );
-
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponseDto> handleUnauthorizedException(
             UnauthorizedException ex, HttpServletRequest request) {
 
-        ErrorResponseDto error = ErrorResponseDto.of(
-            HttpStatus.UNAUTHORIZED.value(),
-            HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-            ex.getMessage(),
-            request.getRequestURI(),
-            List.of()
-        );
-
-        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ForbiddenException.class)
     public ResponseEntity<ErrorResponseDto> handleForbiddenException(
             ForbiddenException ex, HttpServletRequest request) {
 
-        ErrorResponseDto error = ErrorResponseDto.of(
-            HttpStatus.FORBIDDEN.value(),
-            HttpStatus.FORBIDDEN.getReasonPhrase(),
-            ex.getMessage(),
-            request.getRequestURI(),
-            List.of()
-        );
+        return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request);
+    }
 
-        return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponseDto> handleResponseStatusException(
+            ResponseStatusException ex, HttpServletRequest request) {
+
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+
+        return buildError(status, ex.getReason(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -100,18 +78,28 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponseDto> handleGenericException(
-            Exception ex, HttpServletRequest request) {
+    private ResponseEntity<ErrorResponseDto> buildError(
+            HttpStatus status, String message, HttpServletRequest request) {
 
         ErrorResponseDto error = ErrorResponseDto.of(
-            HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-            ex.getMessage(),
+            status.value(),
+            status.getReasonPhrase(),
+            message,
             request.getRequestURI(),
             List.of()
         );
 
-        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(error, status);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponseDto> handleGenericException(
+            Exception ex, HttpServletRequest request) {
+
+        return buildError(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            ex.getMessage(),
+            request
+        );
     }
 }
