@@ -66,7 +66,7 @@ Content-Type: {{contentType}}
 }
 
 ### Store the JWT token from login response
-@authToken = {{loginUser.response.body.token}}
+@authToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZUBleGFtcGxlLmNvbSIsImlhdCI6MTc5NDcyNDczNCwiZXhwIjoxNzk0ODExMTM0fQ.eEWPIM1AxO2xB3mIIqJVu5Ur71zj1EoV6-2rOoJCp74
 
 ### 2.5 Login User - Incorrect Password (Expected: 401 Unauthorized)
 POST {{baseUrl}}/api/v1/auth/login HTTP/1.1
@@ -102,3 +102,149 @@ Authorization: Bearer invalid-or-tampered-token-12345
 GET {{baseUrl}}/api/v1/decisions HTTP/1.1
 Authorization: Bearer {{authToken}}
 
+
+
+### ==============================================================================
+### 4. DECISION BOARD MANAGEMENT (MILESTONE 2 - PHASE 1)
+### ==============================================================================
+
+### 4.1 Create Decision - Success (PUBLIC with initial options)
+# @name createDecision
+POST {{baseUrl}}/api/v1/decisions HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Select Core Backend Architecture",
+  "description": "Choose between Monolith vs Microservices for high scale deployment.",
+  "category": "Technology",
+  "visibility": "PUBLIC",
+  "status": "ACTIVE",
+  "pollType": "SINGLE_CHOICE",
+  "options": [
+    {
+      "title": "Modular Monolith",
+      "description": "High cohesion, single deployment unit, easy refactoring",
+      "displayOrder": 0
+    },
+    {
+      "title": "Microservices",
+      "description": "Independently deployable bounded contexts with event bus",
+      "displayOrder": 1
+    }
+  ]
+}
+
+### Store the created decision ID
+@decisionId = {{createDecision.response.body.data.id}}
+
+### 4.2 Create Decision - Validation Failure (Blank fields, Expected: 400 Bad Request)
+POST {{baseUrl}}/api/v1/decisions HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "",
+  "description": "",
+  "category": ""
+}
+
+### 4.3 Create Decision - Unauthenticated (Expected: 401 Unauthorized)
+POST {{baseUrl}}/api/v1/decisions HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "title": "Unauthorized Decision",
+  "description": "Should be rejected without valid token",
+  "category": "Security"
+}
+
+### 4.4 Retrieve Public Decisions (Paginated, Public Endpoint)
+GET {{baseUrl}}/api/v1/decisions/public?page=0&size=10&sortBy=createdAt&sortDir=desc HTTP/1.1
+
+### 4.5 Retrieve Decisions (Authenticated Endpoint)
+GET {{baseUrl}}/api/v1/decisions?page=0&size=10 HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 4.6 Retrieve Decisions Created by Authenticated User
+GET {{baseUrl}}/api/v1/decisions/my?page=0&size=10 HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 4.7 Retrieve Decision by ID
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 4.8 Retrieve Decision by Missing ID (Expected: 404 Not Found)
+GET {{baseUrl}}/api/v1/decisions/999999 HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 4.9 Update Decision (Creator or Admin)
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Select Core Backend Architecture (Updated)",
+  "description": "Updated context with deployment metrics and cost analysis.",
+  "category": "Technology",
+  "visibility": "PUBLIC",
+  "status": "ACTIVE"
+}
+
+### 4.10 Delete Decision (Creator or Admin)
+DELETE {{baseUrl}}/api/v1/decisions/{{decisionId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+
+### ==============================================================================
+### 5. OPTION MANAGEMENT
+### ==============================================================================
+
+### 5.1 Add Multiple Options to Decision
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/options HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "options": [
+    {
+      "title": "Serverless Functions",
+      "description": "Event-driven compute scaled to zero when idle",
+      "displayOrder": 2
+    },
+    {
+      "title": "Edge Compute",
+      "description": "Distributed edge nodes for ultra-low latency",
+      "displayOrder": 3
+    }
+  ]
+}
+
+### 5.2 Retrieve All Options for Decision
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 5.3 Update Option within Decision
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/1 HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Modular Monolith (Optimized)",
+  "description": "Single repository with Spring Modulith boundaries",
+  "displayOrder": 0
+}
+
+### 5.4 Update Option - Cross-Decision Mismatch (Expected: 400 Bad Request)
+PUT {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/99999 HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Option Not Belonging to Decision",
+  "description": "Should fail with 400 Bad Request"
+}
+
+### 5.5 Delete Option within Decision
+DELETE {{baseUrl}}/api/v1/decisions/{{decisionId}}/options/1 HTTP/1.1
+Authorization: Bearer {{authToken}}
