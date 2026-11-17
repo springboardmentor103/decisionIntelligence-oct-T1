@@ -79,12 +79,35 @@
 .brand-mark > span { position: absolute; right: -3px; bottom: 1px; color: var(--teal); font-size: 13px; }
 .brand-accent { color: var(--teal); }
 .sidebar-nav { display: grid; gap: 3px; }
-.sidebar-link { min-height: 29px; display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 6px; color: #e1e8f4; text-decoration: none; font-size: 11px; transition: background .16s ease; }
-.sidebar-link svg { flex: 0 0 auto; }
-.sidebar-link:hover { background: rgba(255,255,255,.08); }
+.sidebar-link {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: 7px;
+  color: #e1e8f4;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background .16s ease;
+}
 .sidebar-link.active { color: #062b32; background: var(--teal); }
-.nav-badge { min-width: 16px; height: 16px; display: grid; place-items: center; margin-left: auto; border-radius: 50%; color: var(--navy); background: #fff; font-size: 9px; font-weight: 700; }
-.sidebar-logout { display: flex; align-items: center; gap: 9px; margin-top: auto; padding: 8px 9px; color: #dce5f2; border: 0; background: none; text-align: left; font-size: 11px; cursor: pointer; }
+.nav-badge { min-width: 20px; height: 20px; display: grid; place-items: center; margin-left: auto; border-radius: 50%; color: var(--navy); background: #fff; font-size: 11px; font-weight: 700; }
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-top: auto;
+  padding: 10px 12px;
+  color: #dce5f2;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
 .sidebar-logout:hover { color: white; }
 .sidebar-backdrop { display: none; }
 .content-panel { min-width: 0; flex: 1; padding: 22px 28px 30px; overflow-x: hidden; }
@@ -655,4 +678,54 @@ fieldset.form-control legend { padding: 0; margin-bottom: 7px; }
     height: auto;
     margin-top: 15px;
   }
+}
+/* Increase sidebar width without changing its colour */
+.sidebar {
+  width: 250px;
+  min-width: 250px;
+}
+
+/* Keep the existing blue colour */
+.sidebar-logout {
+  margin-top: auto;
+  color: #ffffff !important;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 12px 15px;
+  background: transparent;
+}
+
+.sidebar-logout svg {
+  color: #ffffff;
+}
+.dh-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.dh-logo-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #14213d;
+  border-right-color: #14b8a6;
+  border-radius: 8px;
+  color: #14213d;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.dh-logo-text {
+  color: #14213d;
+  font-size: 25px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dh-logo-text span {
+  color: #14b8a6;
 }

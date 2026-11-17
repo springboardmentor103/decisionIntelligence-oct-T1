@@ -859,3 +859,34 @@
 .features .feature-card {
   background-color: #f5f7fb;
 }
+.dh-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.dh-logo-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #14213d;
+  border-right-color: #14b8a6;
+  border-radius: 8px;
+  color: #14213d;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.dh-logo-text {
+  color: #14213d;
+  font-size: 25px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dh-logo-text span {
+  color: #14b8a6;
+}

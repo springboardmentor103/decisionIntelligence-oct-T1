@@ -69,10 +69,11 @@ function Features() {
     <div className="home-page">
 
       <nav className="navbar">
-        <Link to="/" className="logo">
-          <span className="logo-icon">DH</span>
-          <span>DecisionHub</span>
-        </Link>
+        <Link to="/" className="dh-logo">
+  <span className="dh-logo-icon">D</span>
+  <span className="dh-logo-text">
+    Decision<span>Hub</span>
+  </span></Link>
 
         <div className="nav-links">
           <Link to="/">Home</Link>
