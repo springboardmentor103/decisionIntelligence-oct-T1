@@ -4,6 +4,13 @@ export const createDecision = async (decision) => {
   const response = await api.post('/decisions', decision)
   return response.data.data
 }
+export const updateDecision = async (decisionId, decision) => {
+  const response = await api.put(
+    `/decisions/${decisionId}`,
+    decision
+  )
+  return response.data.data
+}
 
 export const addDecisionOption = async (decisionId, option) => {
   const response = await api.post(
@@ -41,5 +48,9 @@ export const getVoteStatus = async (decisionId) => {
   const response = await api.get(
     `/decisions/${decisionId}/poll/my-vote`
   )
+  return response.data
+}
+export const deleteDecision = async (decisionId) => {
+  const response = await api.delete(`/decisions/${decisionId}`)
   return response.data
 }

@@ -1,11 +1,13 @@
 import { ArrowLeft, CalendarDays, UsersRound } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { StatusBadge } from '../components/DecisionCard'
 import { useDecisions } from '../context/DecisionContext'
 
 export default function DecisionDetails() {
   const { decisionId } = useParams()
+  const location = useLocation()
+   const backPath = location.state?.from || '/explore'
   const { decisions, votes } = useDecisions()
  const decision = decisions.find((item) => String(item.id) === String(decisionId)) || decisions[0]
   
@@ -17,7 +19,10 @@ export default function DecisionDetails() {
 
   return (
     <div className="page-block">
-      <Link to="/explore" className="back-link"><ArrowLeft size={15} /> Back to decisions</Link>
+      <Link to={backPath} className="back-link">
+  <ArrowLeft size={15} /> Back to decisions
+</Link>
+
       <PageHeading
         title={decision.title}
         description={decision.description}
@@ -33,13 +38,16 @@ export default function DecisionDetails() {
           </article>
         ))}
         {decision.status === 'Active' && !selectedVote ? (
-  <Link
-    to={`/vote/${decision.id}`}
-    onClick={() => console.log('Voting decision ID:', decision.id)}
-    className="button button--primary vote-link"
-  >
-    Cast your vote
-  </Link>
+      <Link
+  to={`/vote/${decision.id}`}
+  state={{
+    from: location.pathname,
+    fromState: location.state,
+  }}
+  className="button button--primary vote-link"
+>
+  Cast your vote
+</Link>
 ) : null}
         
         {selectedVote ? <p className="form-success" role="status">Your vote was recorded for this session.</p> : null}

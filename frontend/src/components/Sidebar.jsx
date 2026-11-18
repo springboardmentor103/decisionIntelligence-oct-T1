@@ -26,7 +26,7 @@ const links = [
   { to: '/polls', label: 'Polls', icon: Vote },
   { to: '/community', label: 'Discussions', icon: MessageCircle },
   { to: '/notifications', label: 'Notifications', icon: Bell, hasBadge: true },
-  { to: '/about', label: 'About', icon: Waypoints },
+  { to: '/dashboard-about', label: 'About', icon: Waypoints },
   { to: '/profile', label: 'My Profile', icon: UserRound },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]

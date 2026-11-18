@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
-import { createDecision, addDecisionOption } from '../services/decisionService'
+import { createDecision, updateDecision,addDecisionOption } from '../services/decisionService'
 
 const defaultForm = {
   title: '',
@@ -24,7 +24,18 @@ export default function CreateDecision() {
  const [form, setForm] = useState({
   ...defaultForm,
   ...(editing || {}),
+  deadline: editing?.deadline
+    ? editing.deadline.split('T')[0]
+    : '',
+  visibility:
+    editing?.visibility === 'PUBLIC'
+      ? 'Community'
+      : editing?.visibility === 'PRIVATE'
+        ? 'Private'
+        : editing?.visibility || '',
   pollType: editing?.pollType || '',
+  options: editing?.options || [],
+  criteria: editing?.criteria || [],
 })
   const [optionDraft, setOptionDraft] = useState({ title: '', description: '', pros: '', cons: '' })
   const [criterionDraft, setCriterionDraft] = useState({ name: '', weight: '' })
@@ -82,6 +93,16 @@ export default function CreateDecision() {
       setError('Evaluation criterion weights must total 100%.')
       return
     }
+      if (!form.visibility) {
+  setError('Please select Community or Private.')
+  return
+}
+
+if (!form.pollType) {
+  setError('Please select a Poll Type.')
+  return
+}
+    
 
     const decisionData = {
       title: form.title.trim(),
@@ -92,23 +113,43 @@ export default function CreateDecision() {
       deadline: `${form.deadline}T23:59:00`,
     }
 
-    const createdDecision = await createDecision(decisionData)
-    
-    for (const [index, option] of form.options.entries()) {
-      await addDecisionOption(createdDecision.id, {
+    let savedDecision
+
+if (editing?.id) {
+  // Update the existing decision
+  savedDecision = await updateDecision(editing.id, decisionData)
+
+  // Add only newly created options
+  for (const [index, option] of form.options.entries()) {
+    if (!option.id) {
+      await addDecisionOption(editing.id, {
         title: option.title,
         description: option.description || '',
         displayOrder: index,
       })
     }
+  }
+} else {
+  // Create a new decision
+  savedDecision = await createDecision(decisionData)
+
+  // Add all options for the new decision
+  for (const [index, option] of form.options.entries()) {
+    await addDecisionOption(savedDecision.id, {
+      title: option.title,
+      description: option.description || '',
+      displayOrder: index,
+    })
+  }
+}
 
     saveDecision({
       ...form,
-      id: createdDecision.id,
+      id: savedDecision.id,
       title: form.title.trim(),
       pollType: form.pollType,
-      creator: createdDecision.creatorName || 'You',
-creatorName: createdDecision.creatorName || 'You',
+      creator: savedDecision.creatorName || 'You',
+      creatorName: savedDecision.creatorName || 'You',
       status: shouldPublish ? 'Active' : 'Draft',
       participants: 0,
       votes: 0,
@@ -123,15 +164,8 @@ creatorName: createdDecision.creatorName || 'You',
     console.error('Create decision failed:', error)
     setError(error.response?.data?.message || 'Unable to create decision. Please try again.')
   }
-  if (!form.visibility) {
-  setError('Please select Community or Private.')
-  return
-}
+  
 
-if (!form.pollType) {
-  setError('Please select a Poll Type.')
-  return
-}
 }
   return (
     <div className="page-block">
@@ -156,9 +190,9 @@ if (!form.pollType) {
           </label><label className="form-control">
   Poll Type
   <select
-    value={form.pollType || 'SINGLE_CHOICE'}
+    value={form.pollType }
     onChange={(event) => updateForm('pollType', event.target.value)}
-  >
+  ><option value="">Select Poll Type</option>
     <option value="SINGLE_CHOICE">Single Choice</option>
     <option value="MULTIPLE_CHOICE">Multiple Choice</option>
     <option value="RATING">Rating</option>

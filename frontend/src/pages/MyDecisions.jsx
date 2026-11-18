@@ -3,9 +3,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { StatusBadge } from '../components/DecisionCard'
+import { useDecisions } from '../context/DecisionContext'
 import {
   getMyDecisions,
   getDecisionOptions,
+  deleteDecision,
 } from '../services/decisionService'
 
 const tabs = ['All', 'Draft', 'Active', 'Completed']
@@ -16,8 +18,38 @@ export default function MyDecisions() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('All')
+  const { removeDecision } = useDecisions()
 
   const navigate = useNavigate()
+  const handleDelete = async (decisionId) => {
+  const confirmed = window.confirm(
+    'Are you sure you want to delete this decision?'
+  )
+
+  if (!confirmed) return
+
+  try {
+    await deleteDecision(decisionId)
+    removeDecision(decisionId)
+
+    setDecisions((previous) =>
+  previous.filter(
+    (decision) => String(decision.id) !== String(decisionId)
+  )
+)
+
+removeDecision(decisionId)
+    
+
+    alert('Decision deleted successfully.')
+  } catch (err) {
+    console.error('Failed to delete decision:', err)
+    alert(
+      err.response?.data?.message ||
+      'Unable to delete decision. Please try again.'
+    )
+  }
+}
 
   useEffect(() => {
     const loadMyDecisions = async () => {
@@ -35,10 +67,14 @@ export default function MyDecisions() {
               ...decision,
               options: options || [],
               status:
-                decision.status === 'ACTIVE' ? 'Active' :
-                decision.status === 'DRAFT' ? 'Draft' :
-                decision.status === 'COMPLETED' ? 'Completed' :
-                decision.status,
+  decision.status === 'COMPLETED' ||
+  (decision.deadline && new Date(decision.deadline) < new Date())
+    ? 'Completed'
+    : decision.status === 'ACTIVE'
+      ? 'Active'
+      : decision.status === 'DRAFT'
+        ? 'Draft'
+        : decision.status,
             }
           })
         )
@@ -148,8 +184,10 @@ export default function MyDecisions() {
                   type="button"
                   className="button button--outline button--small"
                   onClick={() =>
-                    navigate(`/decision/${decision.id}`)
-                  }
+  navigate(`/decision/${decision.id}`, {
+    state: { from: '/my-decisions' },
+  })
+}
                 >
                   <Eye size={14} /> View Details
                 </button>
@@ -165,6 +203,13 @@ export default function MyDecisions() {
                 >
                   <Pencil size={14} /> Edit
                 </button>
+                <button
+  type="button"
+  className="button button--outline button--small"
+  onClick={() => handleDelete(decision.id)}
+>
+  Delete
+</button>
 
                 <button
                   type="button"

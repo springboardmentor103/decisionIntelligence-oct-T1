@@ -39,7 +39,7 @@ export default function Login() {
     try {
       const response = await loginUser({ email: form.email, password: form.password })
       login(response.user, response.token)
-      navigate(location.state?.from || '/dashboard', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (submitError) {
       setError(submitError.message || 'Unable to log in at this time.')
     } finally {

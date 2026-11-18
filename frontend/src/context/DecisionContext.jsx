@@ -4,7 +4,10 @@ import {
   getDecisionOptions,
   getPollDetails,
   submitVote,
+  getMyDecisions,
+  getPublicDecisions,
 } from '../services/decisionService'
+import { useAuth } from './AuthContext'
 const sampleDecisions = [
   {
     id: 'decision-1',
@@ -250,7 +253,9 @@ const initialCommunities = [
 const DecisionContext = createContext(null)
 
 export function DecisionProvider({ children }) {
-  const [decisions, setDecisions] = useState(initialDecisions)
+  const { user } = useAuth()
+const userId = user?.userId
+  const [decisions, setDecisions] = useState([])
   const [posts, setPosts] = useState(initialPosts)
   const [polls, setPolls] = useState(initialPolls)
   const [communities] = useState(initialCommunities)
@@ -262,27 +267,202 @@ export function DecisionProvider({ children }) {
     { id: 'notification-4', text: '“Group Trip Destination for December” closes in 3 days', time: 'Yesterday', type: 'deadline', unread: false },
     { id: 'notification-5', text: 'Results published for “Monthly Budget Tracking Tool”', time: '3 days ago', type: 'results', unread: false },
   ])
-  const [votes, setVotes] = useState(() => {
-    const stored = localStorage.getItem('decisionhub-votes')
-    return stored ? JSON.parse(stored) : {}
-  })
-  const [activityEvents, setActivityEvents] = useState(() => loadStoredArray('decisionhub-activity'))
+  const [votes, setVotes] = useState({})
+const [activityEvents, setActivityEvents] = useState([])
+const [loadedUserId, setLoadedUserId] = useState(null)
+useEffect(() => {
+  if (!userId) {
+    setDecisions([])
+    setVotes({})
+    setActivityEvents([])
+    setLoadedUserId(null)
+    return
+  }
 
-  useEffect(() => {
-    localStorage.setItem(
-      'decisionhub-created-decisions',
-      JSON.stringify(decisions.filter((decision) => !decision.isSample)),
+  const savedDecisions = loadStoredArray(
+    `decisionhub-created-decisions-${userId}`
+  )
+
+  const savedVotes = localStorage.getItem(
+    `decisionhub-votes-${userId}`
+  )
+
+  const savedActivity = loadStoredArray(
+    `decisionhub-activity-${userId}`
+  )
+
+  setDecisions(
+    savedDecisions.map((decision) => ({
+      ...decision,
+      isSample: false,
+    }))
+  )
+
+  setVotes(savedVotes ? JSON.parse(savedVotes) : {})
+  setActivityEvents(savedActivity)
+  setLoadedUserId(userId)
+}, [userId])
+
+useEffect(() => {
+  let cancelled = false
+  if (!userId) {
+  setDecisions([])
+  return () => {
+    cancelled = true
+  }
+}
+
+  const loadBackendDecisions = async () => {
+    const results = await Promise.allSettled([
+      getMyDecisions(),
+      getPublicDecisions(),
+    ])
+
+    const mySucceeded = results[0].status === 'fulfilled'
+    const publicSucceeded = results[1].status === 'fulfilled'
+
+    // Keep existing local data if both API requests fail.
+    if (!mySucceeded && !publicSucceeded) {
+      console.error('Unable to load decisions from backend.')
+      return
+    }
+
+    const myDecisions = mySucceeded ? results[0].value || [] : []
+    const publicDecisions = publicSucceeded ? results[1].value || [] : []
+
+    // Avoid showing the same decision twice.
+    const decisionMap = new Map()
+
+    publicDecisions.forEach((decision) => {
+      decisionMap.set(String(decision.id), {
+        decision,
+        isMine: false,
+      })
+    })
+
+    myDecisions.forEach((decision) => {
+      decisionMap.set(String(decision.id), {
+        decision,
+        isMine: true,
+      })
+    })
+
+    const backendDecisions = await Promise.all(
+      Array.from(decisionMap.values()).map(async ({ decision, isMine }) => {
+        let options = []
+
+        try {
+          options = await getDecisionOptions(decision.id)
+        } catch (error) {
+          console.error(
+            `Unable to load options for decision ${decision.id}:`,
+            error
+          )
+        }
+
+        return {
+          ...decision,
+          createdAt: decision.createdAt?.slice(0, 10) || '',
+          deadline: decision.deadline?.slice(0, 10) || '',
+          visibility:
+            decision.visibility === 'PUBLIC' ? 'Community' : 'Private',
+          status:
+  new Date(decision.deadline) < new Date()
+    ? 'Completed'
+    : decision.status === 'COMPLETED'
+      ? 'Completed'
+      : decision.status === 'ACTIVE'
+        ? 'Active'
+        : 'Draft',
+          creator: decision.creatorName || (isMine ? 'You' : ''),
+          isMine,
+          isSample: false,
+          participants: 0,
+          votes: 0,
+          options: options.map((option) => ({
+            id: option.id,
+            decisionId: option.decisionId,
+            title: option.title,
+            description: option.description || '',
+            displayOrder: option.displayOrder,
+            scores: {},
+          })),
+        }
+      })
     )
-  }, [decisions])
+
+    if (cancelled) return
+
+    setDecisions((current) => {
+      // Preserve locally stored information not included in backend DTOs.
+      const existingMap = new Map(
+        current.map((decision) => [String(decision.id), decision])
+      )
+
+      const loaded = backendDecisions.map((decision) => {
+        const existing = existingMap.get(String(decision.id))
+
+        return {
+          ...existing,
+          ...decision,
+          criteria: existing?.criteria || [],
+        }
+      })
+
+      // If one endpoint failed, retain existing records from local storage.
+      if (!mySucceeded || !publicSucceeded) {
+        const loadedIds = new Set(loaded.map((item) => String(item.id)))
+        const remaining = current.filter(
+          (item) => !loadedIds.has(String(item.id))
+        )
+
+        return [...loaded, ...remaining]
+      }
+
+      return loaded
+    })
+  }
+
+  loadBackendDecisions()
+
+  return () => {
+    cancelled = true
+  }
+}, [userId])
 
   useEffect(() => {
-    localStorage.setItem('decisionhub-votes', JSON.stringify(votes))
-  }, [votes])
+  if (loadedUserId !== userId || !userId) return
 
-  useEffect(() => {
-    localStorage.setItem('decisionhub-activity', JSON.stringify(activityEvents))
-  }, [activityEvents])
+  localStorage.setItem(
+    `decisionhub-created-decisions-${userId}`,
+    JSON.stringify(decisions.filter((decision) => !decision.isSample))
+  )
+}, [decisions, userId, loadedUserId])
 
+useEffect(() => {
+  if (loadedUserId !== userId || !userId) return
+
+  localStorage.setItem(
+    `decisionhub-votes-${userId}`,
+    JSON.stringify(votes)
+  )
+}, [votes, userId, loadedUserId])
+
+useEffect(() => {
+  if (loadedUserId !== userId || !userId) return
+
+  localStorage.setItem(
+    `decisionhub-activity-${userId}`,
+    JSON.stringify(activityEvents)
+  )
+}, [activityEvents, userId, loadedUserId])
+const removeDecision = useCallback((decisionId) => {
+  setDecisions((current) =>
+    current.filter(
+      (decision) => String(decision.id) !== String(decisionId)
+    )
+  )
+}, [])
   const saveDecision = useCallback((decision, shouldPublish = true) => {
     const existing = decisions.some((item) => item.id === decision.id)
     const saved = { ...decision, isSample: false, status: shouldPublish ? 'Active' : 'Draft' }
@@ -378,6 +558,7 @@ export function DecisionProvider({ children }) {
       votes,
       activityEvents,
       saveDecision,
+      removeDecision,
       castVote,
       createPoll,
       castPollVote,
@@ -387,7 +568,7 @@ export function DecisionProvider({ children }) {
       addReply,
       markAllRead,
     }),
-    [decisions, posts, polls, communities, joinedCommunities, notifications, votes, activityEvents, saveDecision, castVote, createPoll, castPollVote, joinCommunity, toggleLike, addPost, addReply, markAllRead],
+    [decisions, posts, polls, communities, removeDecision, joinedCommunities, notifications, votes, activityEvents, saveDecision, castVote, createPoll, castPollVote, joinCommunity, toggleLike, addPost, addReply, markAllRead],
   )
 
   return <DecisionContext.Provider value={value}>{children}</DecisionContext.Provider>

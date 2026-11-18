@@ -1,6 +1,6 @@
 import { ArrowLeft, CheckCircle2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
 import {
@@ -14,6 +14,8 @@ export default function Vote() {
   const { decisionId } = useParams()
   console.log('Vote page ID:', decisionId)
   const navigate = useNavigate()
+  const location = useLocation()
+const backState = location.state || {}
   const { decisions, votes } = useDecisions()
   const decision = decisions.find((item) => String(item.id) === decisionId)
   const [selected, setSelected] = useState('')
@@ -79,8 +81,11 @@ useEffect(() => {
   ])
 
   navigate(`/decision/${decision.id}`, {
-    state: { voteConfirmed: true },
-  })
+  state: {
+    ...location.state?.fromState,
+    voteConfirmed: true,
+  },
+})
 } catch (error) {
   console.error('Vote submission failed:', error)
   setError(
@@ -96,7 +101,13 @@ return
 
   return (
     <div className="page-block">
-      <Link to={`/decision/${decision.id}`} className="back-link"><ArrowLeft size={15} /> Back to decision</Link>
+      <Link
+  to={`/decision/${decision.id}`}
+  state={location.state?.fromState || {}}
+  className="back-link"
+>
+  <ArrowLeft size={15} /> Back to decision
+</Link>
       <PageHeading title="Cast your vote" description={decision.title} />
       {hasVoted||existingVote ? (
         <section className="panel-card vote-confirmed">

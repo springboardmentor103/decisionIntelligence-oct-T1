@@ -61,7 +61,9 @@ function App() {
           <Route path="/polls/create" element={<CreatePoll />} />
           <Route path="/polls/:pollId/results" element={<PollResults />} />
           <Route path="/notifications" element={<Notifications />} />
-          <Route path="/about" element={<About />} />
+          <Route path="dashboard-about" element={<About />} />
+          
+  
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/decision/:decisionId" element={<DecisionDetails />} />

@@ -16,6 +16,9 @@ export default function CompareOptions() {
 const [resultsLoading, setResultsLoading] = useState(false)
 const [resultsError, setResultsError] = useState('')
 useEffect(() => {
+  setScores({})
+}, [selectedId])
+useEffect(() => {
   const loadResults = async () => {
     if (!decision || !Number.isInteger(Number(decision.id))) {
       setPollResults(null)
@@ -58,12 +61,13 @@ useEffect(() => {
   const winner = [...totals].sort((a, b) => b.total - a.total)[0]?.title
 
   const updateScore = (option, criterion, value) => {
-    useEffect(() => {
-  setScores({})
-}, [selectedId])
-    const numericValue = Math.min(10, Math.max(1, Number(value) || 1))
-    setScores((current) => ({ ...current, [`${option.title}:${criterion.name}`]: numericValue }))
-  }
+  const numericValue = Math.min(10, Math.max(1, Number(value) || 1))
+
+  setScores((current) => ({
+    ...current,
+    [`${option.title}:${criterion.name}`]: numericValue,
+  }))
+}
 
   return (
     <div className="page-block">
