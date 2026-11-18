@@ -1,5 +1,6 @@
 import { MessageCircle, ThumbsUp } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
 
@@ -45,7 +46,7 @@ export default function Community() {
       <PageHeading
         title="Community"
         description="Learn from others and talk through decision-making."
-        actions={<button type="button" className="button button--primary" onClick={() => setShowComposer((show) => !show)}>Create Discussion</button>}
+        actions={<><Link to="/communities" className="button button--outline">Browse Communities</Link><button type="button" className="button button--primary" onClick={() => setShowComposer((show) => !show)}>Create Discussion</button></>}
       />
       <div className="community-toolbar">
         <input className="plain-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="⌕  Search discussions" />

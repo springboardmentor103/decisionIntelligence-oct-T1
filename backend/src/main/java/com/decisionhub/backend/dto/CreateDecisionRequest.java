@@ -28,6 +28,7 @@ public record CreateDecisionRequest(
     @NotNull(message = "Poll type is required")
     PollType pollType,
 
-    LocalDateTime deadline
+    LocalDateTime deadline,
+    Boolean communityPoll
 
 ) {}

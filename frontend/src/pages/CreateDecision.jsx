@@ -3,15 +3,17 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
+import { createDecision, updateDecision,addDecisionOption } from '../services/decisionService'
 
 const defaultForm = {
   title: '',
   description: '',
   category: '',
   deadline: '',
-  visibility: 'Community',
+  visibility: '',
   options: [],
   criteria: [],
+  pollType: '',
 }
 
 export default function CreateDecision() {
@@ -19,8 +21,23 @@ export default function CreateDecision() {
   const editing = location.state?.decision
   const navigate = useNavigate()
   const { saveDecision } = useDecisions()
-  const [form, setForm] = useState(editing || defaultForm)
-  const [optionDraft, setOptionDraft] = useState({ title: '', description: '' })
+ const [form, setForm] = useState({
+  ...defaultForm,
+  ...(editing || {}),
+  deadline: editing?.deadline
+    ? editing.deadline.split('T')[0]
+    : '',
+  visibility:
+    editing?.visibility === 'PUBLIC'
+      ? 'Community'
+      : editing?.visibility === 'PRIVATE'
+        ? 'Private'
+        : editing?.visibility || '',
+  pollType: editing?.pollType || '',
+  options: editing?.options || [],
+  criteria: editing?.criteria || [],
+})
+  const [optionDraft, setOptionDraft] = useState({ title: '', description: '', pros: '', cons: '' })
   const [criterionDraft, setCriterionDraft] = useState({ name: '', weight: '' })
   const [error, setError] = useState('')
   const totalWeight = form.criteria.reduce((total, criterion) => total + Number(criterion.weight), 0)
@@ -32,8 +49,14 @@ export default function CreateDecision() {
       setError('Add an option title before adding it.')
       return
     }
-    updateForm('options', [...form.options, { ...optionDraft, scores: {} }])
-    setOptionDraft({ title: '', description: '' })
+    updateForm('options', [...form.options, {
+      title: optionDraft.title.trim(),
+      description: optionDraft.description.trim(),
+      pros: optionDraft.pros.split('\n').map((item) => item.trim()).filter(Boolean),
+      cons: optionDraft.cons.split('\n').map((item) => item.trim()).filter(Boolean),
+      scores: {},
+    }])
+    setOptionDraft({ title: '', description: '', pros: '', cons: '' })
     setError('')
   }
 
@@ -52,33 +75,98 @@ export default function CreateDecision() {
     setError('')
   }
 
-  const submit = (shouldPublish) => {
-    if (!form.title.trim() || !form.category || !form.deadline) {
-      setError('Complete the decision title, category and deadline.')
+  const submit = async (shouldPublish) => {
+  try {
+    setError('')
+
+    if (!form.title.trim() || !form.description.trim() || !form.category || !form.deadline) {
+      setError('Complete the decision title, description, category and deadline.')
       return
     }
+
     if (shouldPublish && form.options.length < 2) {
       setError('Add at least two options before publishing.')
       return
     }
+
     if (form.criteria.length && totalWeight !== 100) {
       setError('Evaluation criterion weights must total 100%.')
       return
     }
-    const id = form.id || `decision-${Date.now()}`
+      if (!form.visibility) {
+  setError('Please select Community or Private.')
+  return
+}
+
+if (!form.pollType) {
+  setError('Please select a Poll Type.')
+  return
+}
+    
+
+    const decisionData = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      category: form.category,
+      visibility: form.visibility === 'Community' ? 'PUBLIC' : 'PRIVATE',
+      pollType: form.pollType,
+      deadline: `${form.deadline}T23:59:00`,
+    }
+
+    let savedDecision
+
+if (editing?.id) {
+  // Update the existing decision
+  savedDecision = await updateDecision(editing.id, decisionData)
+
+  // Add only newly created options
+  for (const [index, option] of form.options.entries()) {
+    if (!option.id) {
+      await addDecisionOption(editing.id, {
+        title: option.title,
+        description: option.description || '',
+        displayOrder: index,
+      })
+    }
+  }
+} else {
+  // Create a new decision
+  savedDecision = await createDecision(decisionData)
+
+  // Add all options for the new decision
+  for (const [index, option] of form.options.entries()) {
+    await addDecisionOption(savedDecision.id, {
+      title: option.title,
+      description: option.description || '',
+      displayOrder: index,
+    })
+  }
+}
+
     saveDecision({
       ...form,
-      id,
+      id: savedDecision.id,
       title: form.title.trim(),
-      creator: 'You',
+      pollType: form.pollType,
+      creator: savedDecision.creatorName || 'You',
+      creatorName: savedDecision.creatorName || 'You',
       status: shouldPublish ? 'Active' : 'Draft',
-      participants: form.participants || 0,
-      votes: form.votes || 0,
-      options: form.options.map((option) => ({ ...option, scores: option.scores || {} })),
+      participants: 0,
+      votes: 0,
+      options: form.options.map((option) => ({
+        ...option,
+        scores: option.scores || {},
+      })),
     }, shouldPublish)
-    navigate('/my-decisions')
-  }
 
+    navigate('/my-decisions')
+  } catch (error) {
+    console.error('Create decision failed:', error)
+    setError(error.response?.data?.message || 'Unable to create decision. Please try again.')
+  }
+  
+
+}
   return (
     <div className="page-block">
       <PageHeading
@@ -99,7 +187,17 @@ export default function CreateDecision() {
               <option value="">Select a category</option>
               {['Career', 'Campus', 'Education', 'Finance', 'Lifestyle', 'Technology', 'Travel'].map((item) => <option key={item}>{item}</option>)}
             </select>
-          </label>
+          </label><label className="form-control">
+  Poll Type
+  <select
+    value={form.pollType }
+    onChange={(event) => updateForm('pollType', event.target.value)}
+  ><option value="">Select Poll Type</option>
+    <option value="SINGLE_CHOICE">Single Choice</option>
+    <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+    <option value="RATING">Rating</option>
+  </select>
+</label>
           <label className="form-control">Deadline
             <input type="date" value={form.deadline} onChange={(event) => updateForm('deadline', event.target.value)} />
           </label>
@@ -122,12 +220,14 @@ export default function CreateDecision() {
 
       <section className="form-panel panel-card">
         <h2>Options <span className="muted-count">({form.options.length} added)</span></h2>
-        <div className="repeat-entry">
+        <div className="repeat-entry option-entry">
           <label className="form-control">Option Title<input value={optionDraft.title} onChange={(event) => setOptionDraft({ ...optionDraft, title: event.target.value })} placeholder="e.g. Option A" /></label>
           <label className="form-control">Option Description<input value={optionDraft.description} onChange={(event) => setOptionDraft({ ...optionDraft, description: event.target.value })} placeholder="Short summary" /></label>
+          <label className="form-control">Pros <span className="muted-count">(one per line)</span><textarea rows="2" value={optionDraft.pros} onChange={(event) => setOptionDraft({ ...optionDraft, pros: event.target.value })} placeholder="What works well about this option?" /></label>
+          <label className="form-control">Cons <span className="muted-count">(one per line)</span><textarea rows="2" value={optionDraft.cons} onChange={(event) => setOptionDraft({ ...optionDraft, cons: event.target.value })} placeholder="What are the trade-offs?" /></label>
           <button type="button" className="button button--dark button--small" onClick={addOption}><Plus size={15} /> Add Option</button>
         </div>
-        {form.options.length > 0 ? <ul className="created-items">{form.options.map((option, index) => <li key={`${option.title}-${index}`}><span>{option.title}<small>{option.description}</small></span><button type="button" aria-label={`Remove ${option.title}`} onClick={() => updateForm('options', form.options.filter((_, optionIndex) => optionIndex !== index))}><Trash2 size={15} /></button></li>)}</ul> : null}
+        {form.options.length > 0 ? <ul className="created-items">{form.options.map((option, index) => <li key={`${option.title}-${index}`}><span>{option.title}<small>{option.description}</small><small>{(option.pros || []).length} pros · {(option.cons || []).length} cons</small></span><button type="button" aria-label={`Remove ${option.title}`} onClick={() => updateForm('options', form.options.filter((_, optionIndex) => optionIndex !== index))}><Trash2 size={15} /></button></li>)}</ul> : null}
       </section>
 
       <section className="form-panel panel-card">

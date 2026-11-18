@@ -23,5 +23,9 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
     List<Decision> findByCategory(String category);
 
     List<Decision> findByVisibility(DecisionVisibility visibility);
+    List<Decision> findByCommunityPollTrueAndVisibilityAndStatus(
+        DecisionVisibility visibility,
+        DecisionStatus status
+);
 }
 

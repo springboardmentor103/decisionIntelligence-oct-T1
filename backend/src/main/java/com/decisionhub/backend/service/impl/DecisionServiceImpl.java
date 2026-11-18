@@ -92,7 +92,8 @@ public class DecisionServiceImpl implements DecisionService {
                         ? null : decision.getCommunity().getId(),
                 decision.getDeadline(),
                 decision.getCreatedAt(),
-                decision.getUpdatedAt()
+                decision.getUpdatedAt(),
+                decision.isCommunityPoll()
         );
     }
 
@@ -112,6 +113,7 @@ public class DecisionServiceImpl implements DecisionService {
                 .visibility(request.visibility())
                 .status(DecisionStatus.ACTIVE)
                 .pollType(request.pollType())
+                .communityPoll(Boolean.TRUE.equals(request.communityPoll()))
                 .deadline(request.deadline())
                 .creator(creator)
                 .build();
@@ -131,6 +133,20 @@ public class DecisionServiceImpl implements DecisionService {
                 .map(this::mapToResponse)
                 .toList();
     }
+    // API: Retrieve Community Polls
+@Override
+@Transactional(readOnly = true)
+public List<DecisionResponse> getCommunityPolls() {
+
+    return decisionRepository
+            .findByCommunityPollTrueAndVisibilityAndStatus(
+                    DecisionVisibility.PUBLIC,
+                    DecisionStatus.ACTIVE
+            )
+            .stream()
+            .map(this::mapToResponse)
+            .toList();
+}
 
     // API 3: Retrieve My Decisions
     @Override
@@ -178,6 +194,9 @@ public class DecisionServiceImpl implements DecisionService {
         decision.setCategory(request.category());
         decision.setVisibility(request.visibility());
         decision.setPollType(request.pollType());
+        if (request.communityPoll() != null) {
+    decision.setCommunityPoll(request.communityPoll());
+}
         decision.setDeadline(request.deadline());
 
         return mapToResponse(decisionRepository.save(decision));

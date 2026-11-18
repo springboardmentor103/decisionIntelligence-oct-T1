@@ -50,6 +50,14 @@ public class DecisionController {
                 "Public decisions retrieved successfully",
                 decisionService.getPublicDecisions()));
     }
+    // API: Get Community Polls
+@GetMapping("/community-polls")
+public ResponseEntity<ApiResponseDto<List<DecisionResponse>>> getCommunityPolls() {
+
+    return ResponseEntity.ok(ApiResponseDto.success(
+            "Community polls retrieved successfully",
+            decisionService.getCommunityPolls()));
+}
 
     // API 3: Get My Decisions
     @GetMapping("/my")
