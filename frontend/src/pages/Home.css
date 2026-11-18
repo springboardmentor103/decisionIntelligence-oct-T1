@@ -890,3 +890,32 @@
 .dh-logo-text span {
   color: #14b8a6;
 }
+.footer-dh-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.footer-dh-logo .dh-logo-icon {
+  width: 42px;
+  height: 42px;
+  border: 2px solid #14b8a6;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #14b8a6;
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.footer-dh-logo .dh-logo-text {
+  color: white;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.footer-dh-logo .dh-logo-text span {
+  color: #14b8a6;
+}

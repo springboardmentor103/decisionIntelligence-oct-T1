@@ -183,10 +183,12 @@ export function Footer() {
   return (
     <footer className="footer">
       <div className="footer-brand">
-        <Link to="/" className="logo footer-logo">
-          <span className="logo-icon">DH</span>
-          <span>DecisionHub</span>
-        </Link>
+        <Link to="/" className="dh-logo footer-dh-logo">
+  <span className="dh-logo-icon">D</span>
+  <span className="dh-logo-text">
+    Decision<span>Hub</span>
+  </span>
+</Link>
         <p>Make Better Decisions Together.</p>
       </div>
 

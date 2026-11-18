@@ -7,8 +7,9 @@ import { useDecisions } from '../context/DecisionContext'
 export default function DecisionDetails() {
   const { decisionId } = useParams()
   const { decisions, votes } = useDecisions()
-  const decision = decisions.find((item) => item.id === decisionId)
-  const selectedVote = votes[decisionId]
+ const decision = decisions.find((item) => String(item.id) === String(decisionId)) || decisions[0]
+  
+  const selectedVote = votes[decision?.id]
 
   if (!decision) {
     return <div className="page-block"><div className="panel-card empty-state"><h2>Decision not found</h2><Link to="/explore" className="button button--primary">Explore decisions</Link></div></div>
@@ -31,9 +32,18 @@ export default function DecisionDetails() {
             {selectedVote === option.title ? <span className="form-success">Your vote</span> : null}
           </article>
         ))}
-        {decision.status === 'Active' && !selectedVote ? <Link to={`/vote/${decision.id}`} className="button button--primary vote-link">Cast your vote</Link> : null}
+        {decision.status === 'Active' && !selectedVote ? (
+  <Link
+    to={`/vote/${decision.id}`}
+    onClick={() => console.log('Voting decision ID:', decision.id)}
+    className="button button--primary vote-link"
+  >
+    Cast your vote
+  </Link>
+) : null}
+        
         {selectedVote ? <p className="form-success" role="status">Your vote was recorded for this session.</p> : null}
-        <p className="vote-disclaimer">Votes are stored only in this browser session. Backend integration is needed for shared, permanent voting.</p>
+        
       </section>
       <section className="panel-card decision-about-panel"><h2>Evaluation criteria</h2><div className="criteria-chips">{decision.criteria.map((criterion) => <span key={criterion.name}>{criterion.name}<strong>{criterion.weight}%</strong></span>)}</div></section>
       <section className="panel-card decision-about-panel">

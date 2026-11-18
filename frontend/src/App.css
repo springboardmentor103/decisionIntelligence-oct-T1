@@ -729,3 +729,369 @@ fieldset.form-control legend { padding: 0; margin-bottom: 7px; }
 .dh-logo-text span {
   color: #14b8a6;
 }
+/* ==================================
+   DecisionHub - Global Readability
+   ================================== */
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-size: 16px;
+}
+
+/* Page headings */
+.page-heading h1 {
+  font-size: 28px;
+}
+
+.page-description {
+  font-size: 16px;
+}
+
+.panel-heading h2,
+.panel-card > h2,
+.form-panel > h2 {
+  font-size: 20px;
+}
+
+/* General content */
+.panel-card p,
+.decision-card-description,
+.empty-state p,
+.my-decision-main p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Decision cards */
+.decision-card h3 {
+  font-size: 19px;
+}
+
+.decision-card-author,
+.decision-card-footer {
+  font-size: 13px;
+}
+
+.category-label,
+.status-badge {
+  font-size: 12px;
+}
+
+/* Forms */
+.form-control {
+  font-size: 15px;
+}
+
+.form-control input,
+.form-control select,
+.form-control textarea,
+.search-field input {
+  font-size: 15px;
+  min-height: 42px;
+}
+
+.visibility-option strong {
+  font-size: 14px;
+}
+
+.visibility-option small {
+  font-size: 13px;
+}
+
+/* Buttons */
+.button {
+  font-size: 14px;
+  min-height: 38px;
+  padding: 9px 14px;
+}
+
+.button--small {
+  font-size: 13px;
+  min-height: 34px;
+}
+
+/* Navigation */
+.sidebar-link,
+.sidebar-logout {
+  font-size: 15px;
+}
+
+.topbar-brand {
+  font-size: 17px;
+}
+
+.profile-menu-trigger {
+  font-size: 14px;
+}
+
+/* Filters and search */
+.filter-pill,
+.search-field,
+.decision-select-label {
+  font-size: 14px;
+}
+
+/* My Decisions */
+.my-decision-main h3 {
+  font-size: 17px;
+}
+
+/* Tables */
+.data-table th {
+  font-size: 12px;
+}
+
+.data-table td {
+  font-size: 14px;
+}
+
+/* Comparison content */
+.score-bar-row > div:first-child,
+.strength-row {
+  font-size: 14px;
+}
+
+/* Small messages */
+.form-alert,
+.form-success,
+.vote-disclaimer {
+  font-size: 14px;
+}
+/* Refined DecisionHub sizing */
+
+.page-heading h1 {
+  font-size: 25px;
+}
+
+.page-description {
+  font-size: 14px;
+}
+
+.panel-heading h2,
+.panel-card > h2,
+.form-panel > h2 {
+  font-size: 17px;
+}
+
+.panel-card p,
+.decision-card-description,
+.empty-state p {
+  font-size: 14px;
+}
+
+.decision-card h3 {
+  font-size: 17px;
+}
+
+.form-control {
+  font-size: 14px;
+}
+
+.form-control input,
+.form-control select,
+.form-control textarea,
+.search-field input {
+  font-size: 14px;
+  min-height: 38px;
+}
+
+.button {
+  font-size: 13px;
+  min-height: 34px;
+  padding: 7px 12px;
+}
+
+.button--small {
+  font-size: 12px;
+  min-height: 30px;
+  padding: 5px 9px;
+}
+
+.filter-pill {
+  font-size: 13px;
+  min-height: 30px;
+}
+
+.visibility-option strong {
+  font-size: 13px;
+}
+
+.visibility-option small {
+  font-size: 12px;
+}
+
+/* ===== Create Decision Form Layout Improvements ===== */
+
+.form-panel {
+  width: 100%;
+  margin-bottom: 22px;
+  padding: 24px;
+}
+
+.form-panel .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+  align-items: start;
+}
+
+.form-panel .form-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.form-panel .form-control--wide {
+  grid-column: 1 / -1;
+}
+
+.form-panel input:not([type="radio"]),
+.form-panel select,
+.form-panel textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #d9e0eb;
+  border-radius: 7px;
+  background: #fff;
+  font: inherit;
+}
+
+.form-panel textarea {
+  min-height: 85px;
+  resize: vertical;
+}
+
+.form-panel input:focus,
+.form-panel select:focus,
+.form-panel textarea:focus {
+  border-color: #14b8a6;
+  outline: 2px solid rgba(20, 184, 166, 0.12);
+}
+
+/* Decision Type */
+
+.form-panel fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #dce3ed;
+  border-radius: 9px;
+}
+
+.form-panel legend {
+  padding: 0 7px;
+  font-weight: 600;
+}
+
+.visibility-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.visibility-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 90px;
+  padding: 14px;
+  border: 1px solid #dce3ed;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.visibility-option.selected {
+  border-color: #14b8a6;
+  background: #f0fdfa;
+}
+
+.visibility-option input[type="radio"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: #14b8a6;
+}
+
+.visibility-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.visibility-option strong {
+  font-size: 14px;
+}
+
+.visibility-option small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* Options and Criteria */
+
+.repeat-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.repeat-entry > button {
+  justify-self: start;
+}
+
+.repeat-entry--criteria {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.created-items {
+  margin-top: 18px;
+}
+
+/* Bottom buttons */
+
+.form-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Mobile layout */
+
+@media (max-width: 700px) {
+  .form-panel {
+    padding: 17px;
+  }
+
+  .form-panel .form-grid,
+  .visibility-options,
+  .repeat-entry,
+  .repeat-entry--criteria {
+    grid-template-columns: 1fr;
+  }
+
+  .form-panel .form-control--wide {
+    grid-column: auto;
+  }
+
+  .form-footer-actions {
+    justify-content: stretch;
+  }
+
+  .form-footer-actions button {
+    flex: 1;
+  }
+}

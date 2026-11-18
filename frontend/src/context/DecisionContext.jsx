@@ -1,6 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-
+import {
+  getDecisionOptions,
+  getPollDetails,
+  submitVote,
+} from '../services/decisionService'
 const sampleDecisions = [
   {
     id: 'decision-1',
@@ -150,10 +154,9 @@ const loadStoredArray = (key) => {
   return value
 }
 
-const initialDecisions = [
-  ...sampleDecisions.map((decision) => ({ ...decision, isSample: true })),
-  ...loadStoredArray('decisionhub-created-decisions').map((decision) => ({ ...decision, isSample: false })),
-]
+const initialDecisions = loadStoredArray('decisionhub-created-decisions').map(
+  (decision) => ({ ...decision, isSample: false })
+)
 
 const initialPosts = [
   {
@@ -301,7 +304,7 @@ export function DecisionProvider({ children }) {
   const castVote = useCallback((decisionId, optionTitle) => {
     if (votes[decisionId]) return false
     setVotes((current) => ({ ...current, [decisionId]: optionTitle }))
-    const decision = decisions.find((item) => item.id === decisionId)
+    const decision = decisions.find((item) => String(item.id) === decisionId)
     setActivityEvents((events) => [...events, {
       type: 'vote',
       title: decision?.title || 'a decision',

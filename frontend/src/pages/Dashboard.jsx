@@ -1,8 +1,11 @@
 import { Activity, ArrowRight, CheckCircle2, ClipboardList, MessageCircle, Vote } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { getMyDecisions } from '../services/decisionService'
 import PageHeading from '../components/PageHeading'
 import { StatusBadge } from '../components/DecisionCard'
 import { useDecisions } from '../context/DecisionContext'
+
 
 const getDateKey = (date) => {
   const year = date.getFullYear()
@@ -21,10 +24,33 @@ const formatRelativeTime = (timestamp) => {
 }
 
 export default function Dashboard() {
-  const { decisions, votes, activityEvents } = useDecisions()
-  const myDecisions = decisions.filter((decision) =>
-    !decision.isSample && (decision.isMine || decision.creator === 'You'),
-  )
+  const { votes, activityEvents } = useDecisions()
+
+const [myDecisions, setMyDecisions] = useState([])
+
+useEffect(() => {
+  const loadDecisions = async () => {
+    try {
+      const data = await getMyDecisions()
+
+      const normalized = (data || []).map((decision) => ({
+        ...decision,
+        status:
+          decision.status === 'ACTIVE' ? 'Active' :
+          decision.status === 'DRAFT' ? 'Draft' :
+          decision.status === 'COMPLETED' ? 'Completed' :
+          decision.status,
+      }))
+
+      setMyDecisions(normalized)
+    } catch (error) {
+      console.error('Dashboard decisions loading failed:', error)
+    }
+  }
+
+  loadDecisions()
+}, [])
+  
   const active = myDecisions.filter((decision) => decision.status === 'Active')
   const completed = myDecisions.filter((decision) => decision.status === 'Completed')
   const recentEvents = [...activityEvents]

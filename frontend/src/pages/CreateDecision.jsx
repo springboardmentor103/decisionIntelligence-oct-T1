@@ -3,15 +3,17 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
+import { createDecision, addDecisionOption } from '../services/decisionService'
 
 const defaultForm = {
   title: '',
   description: '',
   category: '',
   deadline: '',
-  visibility: 'Community',
+  visibility: '',
   options: [],
   criteria: [],
+  pollType: '',
 }
 
 export default function CreateDecision() {
@@ -19,7 +21,11 @@ export default function CreateDecision() {
   const editing = location.state?.decision
   const navigate = useNavigate()
   const { saveDecision } = useDecisions()
-  const [form, setForm] = useState(editing || defaultForm)
+ const [form, setForm] = useState({
+  ...defaultForm,
+  ...(editing || {}),
+  pollType: editing?.pollType || '',
+})
   const [optionDraft, setOptionDraft] = useState({ title: '', description: '', pros: '', cons: '' })
   const [criterionDraft, setCriterionDraft] = useState({ name: '', weight: '' })
   const [error, setError] = useState('')
@@ -58,33 +64,75 @@ export default function CreateDecision() {
     setError('')
   }
 
-  const submit = (shouldPublish) => {
-    if (!form.title.trim() || !form.category || !form.deadline) {
-      setError('Complete the decision title, category and deadline.')
+  const submit = async (shouldPublish) => {
+  try {
+    setError('')
+
+    if (!form.title.trim() || !form.description.trim() || !form.category || !form.deadline) {
+      setError('Complete the decision title, description, category and deadline.')
       return
     }
+
     if (shouldPublish && form.options.length < 2) {
       setError('Add at least two options before publishing.')
       return
     }
+
     if (form.criteria.length && totalWeight !== 100) {
       setError('Evaluation criterion weights must total 100%.')
       return
     }
-    const id = form.id || `decision-${Date.now()}`
+
+    const decisionData = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      category: form.category,
+      visibility: form.visibility === 'Community' ? 'PUBLIC' : 'PRIVATE',
+      pollType: form.pollType,
+      deadline: `${form.deadline}T23:59:00`,
+    }
+
+    const createdDecision = await createDecision(decisionData)
+    
+    for (const [index, option] of form.options.entries()) {
+      await addDecisionOption(createdDecision.id, {
+        title: option.title,
+        description: option.description || '',
+        displayOrder: index,
+      })
+    }
+
     saveDecision({
       ...form,
-      id,
+      id: createdDecision.id,
       title: form.title.trim(),
-      creator: 'You',
+      pollType: form.pollType,
+      creator: createdDecision.creatorName || 'You',
+creatorName: createdDecision.creatorName || 'You',
       status: shouldPublish ? 'Active' : 'Draft',
-      participants: form.participants || 0,
-      votes: form.votes || 0,
-      options: form.options.map((option) => ({ ...option, scores: option.scores || {} })),
+      participants: 0,
+      votes: 0,
+      options: form.options.map((option) => ({
+        ...option,
+        scores: option.scores || {},
+      })),
     }, shouldPublish)
-    navigate('/my-decisions')
-  }
 
+    navigate('/my-decisions')
+  } catch (error) {
+    console.error('Create decision failed:', error)
+    setError(error.response?.data?.message || 'Unable to create decision. Please try again.')
+  }
+  if (!form.visibility) {
+  setError('Please select Community or Private.')
+  return
+}
+
+if (!form.pollType) {
+  setError('Please select a Poll Type.')
+  return
+}
+}
   return (
     <div className="page-block">
       <PageHeading
@@ -105,7 +153,17 @@ export default function CreateDecision() {
               <option value="">Select a category</option>
               {['Career', 'Campus', 'Education', 'Finance', 'Lifestyle', 'Technology', 'Travel'].map((item) => <option key={item}>{item}</option>)}
             </select>
-          </label>
+          </label><label className="form-control">
+  Poll Type
+  <select
+    value={form.pollType || 'SINGLE_CHOICE'}
+    onChange={(event) => updateForm('pollType', event.target.value)}
+  >
+    <option value="SINGLE_CHOICE">Single Choice</option>
+    <option value="MULTIPLE_CHOICE">Multiple Choice</option>
+    <option value="RATING">Rating</option>
+  </select>
+</label>
           <label className="form-control">Deadline
             <input type="date" value={form.deadline} onChange={(event) => updateForm('deadline', event.target.value)} />
           </label>

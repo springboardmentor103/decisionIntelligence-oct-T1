@@ -1,14 +1,46 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect ,useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
+import { getPollDetails } from '../services/decisionService'
 
 export default function CompareOptions() {
   const { decisions } = useDecisions()
   const [searchParams] = useSearchParams()
   const [selectedId, setSelectedId] = useState(searchParams.get('decision') || decisions[0]?.id || '')
-  const decision = decisions.find((item) => item.id === selectedId) || decisions[0]
+  const decision = decisions.find(
+  (item) => String(item.id) === String(selectedId)
+) || decisions[0]
   const [scores, setScores] = useState({})
+  const [pollResults, setPollResults] = useState(null)
+const [resultsLoading, setResultsLoading] = useState(false)
+const [resultsError, setResultsError] = useState('')
+useEffect(() => {
+  const loadResults = async () => {
+    if (!decision || !Number.isInteger(Number(decision.id))) {
+      setPollResults(null)
+      return
+    }
+
+    try {
+      setResultsLoading(true)
+      setResultsError('')
+
+      const results = await getPollDetails(decision.id)
+      setPollResults(results)
+    } catch (error) {
+      console.error('Failed to load voting results:', error)
+      setResultsError('Unable to load voting results.')
+      setPollResults(null)
+    } finally {
+      setResultsLoading(false)
+    }
+  }
+
+  loadResults()
+}, [decision?.id])
+  
+
 
   const criteria = useMemo(
     () => decision?.criteria?.length ? decision.criteria : [{ name: 'Overall', weight: 100 }],
@@ -26,6 +58,9 @@ export default function CompareOptions() {
   const winner = [...totals].sort((a, b) => b.total - a.total)[0]?.title
 
   const updateScore = (option, criterion, value) => {
+    useEffect(() => {
+  setScores({})
+}, [selectedId])
     const numericValue = Math.min(10, Math.max(1, Number(value) || 1))
     setScores((current) => ({ ...current, [`${option.title}:${criterion.name}`]: numericValue }))
   }
@@ -78,6 +113,54 @@ export default function CompareOptions() {
             </div>
           </div>
           <div className="content-grid compare-insights">
+            <section className="panel-card">
+  <h2>Community Voting Results</h2>
+
+  {resultsLoading ? (
+    <p>Loading voting results...</p>
+  ) : resultsError ? (
+    <p className="form-alert">{resultsError}</p>
+  ) : pollResults ? (
+    <>
+      <p>
+        Total votes: {
+          pollResults.options?.reduce(
+            (total, option) => total + option.voteCount,
+            0
+          ) || 0
+        }
+      </p>
+
+      {pollResults.options?.map((option) => {
+        const totalVotes = pollResults.options.reduce(
+          (total, item) => total + item.voteCount,
+          0
+        )
+
+        const percentage = totalVotes
+          ? (option.voteCount / totalVotes) * 100
+          : 0
+
+        return (
+          <div className="score-bar-row" key={option.optionId}>
+            <div>
+              <span>{option.title}</span>
+              <span>
+                {option.voteCount} votes ({percentage.toFixed(1)}%)
+              </span>
+            </div>
+
+            <div className="score-bar">
+              <span style={{ width: `${percentage}%` }} />
+            </div>
+          </div>
+        )
+      })}
+    </>
+  ) : (
+    <p>No voting results available for this decision.</p>
+  )}
+</section>
             <section className="panel-card">
               <h2>Weighted score comparison</h2>
               {totals.map((option) => (
