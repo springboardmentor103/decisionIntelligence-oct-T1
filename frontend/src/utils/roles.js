@@ -1,3 +1,4 @@
+
 const roleAliases = {
   administrator: 'admin',
   admin: 'admin',
@@ -12,7 +13,8 @@ export const normalizeRoles = (roles) => {
   return [...new Set(
     roleList
       .filter((role) => typeof role === 'string')
-      .map((role) => roleAliases[role.toLowerCase().replace(/[\s_-]+/g, '')])
+      .map((role) => role.replace(/^ROLE[_\s-]*/i, '').toLowerCase().replace(/[\s_-]+/g, ''))
+      .map((role) => roleAliases[role])
       .filter(Boolean),
   )]
 }

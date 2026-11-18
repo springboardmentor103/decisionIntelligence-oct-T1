@@ -16,6 +16,7 @@ public interface DecisionService {
     );
 
     List<DecisionResponse> getPublicDecisions();
+    List<DecisionResponse> getCommunityPolls();
 
     List<DecisionResponse> getMyDecisions(String userEmail);
 

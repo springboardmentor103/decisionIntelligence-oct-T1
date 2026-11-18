@@ -36,7 +36,7 @@ export default function ForgotPassword() {
   }
 
   return (
-    <div className="auth-shell">
+    <div className="auth-shell auth-shell--expanded">
       <AuthShowcase />
       <main className="auth-main">
         <div className="auth-card">
@@ -62,7 +62,7 @@ export default function ForgotPassword() {
             {error ? <p className="form-alert" role="alert">{error}</p> : null}
             {status ? <p className="form-success">{status}</p> : null}
 
-            <Button type="submit" className="full-width" disabled={isSubmitting}>
+            <Button type="submit" className="full-width auth-submit" disabled={isSubmitting}>
               {isSubmitting ? 'Sending...' : 'Send reset link'}
             </Button>
           </form>

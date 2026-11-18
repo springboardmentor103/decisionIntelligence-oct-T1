@@ -21,6 +21,5 @@ public record DecisionResponse(
     Long communityId,
     LocalDateTime deadline,
     LocalDateTime createdAt,
-    LocalDateTime updatedAt
-
-) {}
+    LocalDateTime updatedAt,
+    Boolean communityPoll) {}

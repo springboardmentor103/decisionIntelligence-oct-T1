@@ -5,9 +5,11 @@ import { DecisionCard, FilterPill } from '../components/DecisionCard'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
 
+
 const categories = ['All', 'Technology', 'Campus', 'Career', 'Finance', 'Lifestyle', 'Travel']
 
 export default function ExploreDecisions() {
+  
   const { decisions } = useDecisions()
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('q') || '')
