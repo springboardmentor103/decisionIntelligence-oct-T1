@@ -17,15 +17,14 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
     List<Decision> findByCreatorId(Long creatorId);
 
     List<Decision> findByCommunityId(Long communityId);
+    long countByCommunityId(Long communityId);
 
     List<Decision> findByStatus(DecisionStatus status);
 
     List<Decision> findByCategory(String category);
 
     List<Decision> findByVisibility(DecisionVisibility visibility);
-    List<Decision> findByCommunityPollTrueAndVisibilityAndStatus(
-        DecisionVisibility visibility,
-        DecisionStatus status
+    List<Decision> findByCommunityPollTrueAndVisibilityAndStatus( DecisionVisibility visibility,DecisionStatus status
 );
 }
 

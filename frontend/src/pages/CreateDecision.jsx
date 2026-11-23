@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
+import { getAllCommunities } from '../services/communityService'
 import {
   createDecision,
   updateDecision,
@@ -20,6 +21,7 @@ const defaultForm = {
   options: [],
   criteria: [],
   pollType: '',
+  communityId: '',
 }
 
 export default function CreateDecision() {
@@ -29,6 +31,7 @@ export default function CreateDecision() {
 console.log('Existing criteria:', editing?.criteria)
   const navigate = useNavigate()
   const { saveDecision } = useDecisions()
+  const [communities, setCommunities] = useState([])
  const [form, setForm] = useState({
   ...defaultForm,
   ...(editing || {}),
@@ -44,7 +47,29 @@ console.log('Existing criteria:', editing?.criteria)
   pollType: editing?.pollType || '',
   options: editing?.options || [],
   criteria: editing?.criteria || [],
+  communityId: editing?.communityId
+  ? String(editing.communityId)
+  : '',
 })
+useEffect(() => {
+  const loadCommunities = async () => {
+    try {
+      const response = await getAllCommunities()
+
+      const data = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : []
+
+      setCommunities(data)
+    } catch (error) {
+      console.error('Failed to load communities:', error)
+    }
+  }
+
+  loadCommunities()
+}, [])
 useEffect(() => {
   if (!editing?.id) return
 
@@ -140,6 +165,9 @@ if (!form.pollType) {
   title: form.title.trim(),
   description: form.description.trim(),
   category: form.category,
+  communityId: form.communityId
+  ? Number(form.communityId)
+  : null,
   visibility: form.visibility === 'Community' ? 'PUBLIC' : 'PRIVATE',
   pollType: form.pollType,
   deadline: `${form.deadline}T23:59:00`,
@@ -221,7 +249,22 @@ if (editing?.id) {
               <option value="">Select a category</option>
               {['Career', 'Campus', 'Education', 'Finance', 'Lifestyle', 'Technology', 'Travel'].map((item) => <option key={item}>{item}</option>)}
             </select>
-          </label><label className="form-control">
+          </label>
+          <label className="form-control">
+  Community
+  <select
+    value={form.communityId}
+    onChange={(event) => updateForm('communityId', event.target.value)}
+  >
+    <option value="">Select a community (optional)</option>
+
+    {communities.map((community) => (
+      <option key={community.id} value={String(community.id)}>
+        {community.name}
+      </option>
+    ))}
+  </select>
+</label><label className="form-control">
   Poll Type
   <select
     value={form.pollType }

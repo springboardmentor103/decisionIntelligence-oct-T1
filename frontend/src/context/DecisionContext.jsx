@@ -9,6 +9,11 @@ import {
   getCommunityPolls,
   deleteDecision,
 } from '../services/decisionService'
+import {
+  getAllCommunities,
+  getMyCommunities,
+  joinCommunityApi,
+} from '../services/communityService'
 import { useAuth } from './AuthContext'
 const sampleDecisions = [
   {
@@ -260,8 +265,8 @@ const userId = user?.userId
   const [decisions, setDecisions] = useState([])
   const [posts, setPosts] = useState(initialPosts)
   const [polls, setPolls] = useState(initialPolls)
-  const [communities] = useState(initialCommunities)
-  const [joinedCommunities, setJoinedCommunities] = useState(['technology'])
+  const [communities, setCommunities] = useState([])
+const [joinedCommunities, setJoinedCommunities] = useState([])
   const [notifications, setNotifications] = useState([
     { id: 'notification-1', text: 'Reminder: cast your vote on “Where Should We Hold the Annual Tech Fest?”', time: '10 min ago', type: 'vote', unread: true },
     { id: 'notification-2', text: 'Priya Nair replied to your comment in “Final-Year Project Tech Stack”', time: '2h ago', type: 'reply', unread: true },
@@ -272,6 +277,57 @@ const userId = user?.userId
   const [votes, setVotes] = useState({})
 const [activityEvents, setActivityEvents] = useState([])
 const [loadedUserId, setLoadedUserId] = useState(null)
+useEffect(() => {
+  let cancelled = false
+
+  const getList = (response) => {
+    if (Array.isArray(response)) return response
+    if (Array.isArray(response?.data)) return response.data
+    return []
+  }
+
+  const loadCommunities = async () => {
+    try {
+      const response = await getAllCommunities()
+      const data = getList(response)
+
+      if (!cancelled) {
+        setCommunities(
+          data.map((community) => ({
+            ...community,
+            id: String(community.id),
+            members: community.memberCount ?? 0,
+            decisions: community.decisionCount ?? 0,
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Unable to load communities:', error)
+    }
+
+    if (!userId) {
+      if (!cancelled) setJoinedCommunities([])
+      return
+    }
+
+    try {
+      const response = await getMyCommunities()
+      const data = getList(response)
+
+      if (!cancelled) {
+        setJoinedCommunities(data.map((community) => String(community.id)))
+      }
+    } catch (error) {
+      console.error('Unable to load joined communities:', error)
+    }
+  }
+
+  loadCommunities()
+
+  return () => {
+    cancelled = true
+  }
+}, [userId])
 useEffect(() => {
   if (!userId) {
     setDecisions([])
@@ -603,9 +659,27 @@ const removeDecision = useCallback((decisionId) => {
     return true
   }, [polls, votes])
 
-  const joinCommunity = useCallback((communityId) => {
-    setJoinedCommunities((current) => current.includes(communityId) ? current : [...current, communityId])
-  }, [])
+  const joinCommunity = useCallback(async (communityId) => {
+  const id = String(communityId)
+
+  if (joinedCommunities.includes(id)) return true
+
+  try {
+    await joinCommunityApi(id)
+
+    setJoinedCommunities((current) =>
+      current.includes(id) ? current : [...current, id]
+    )
+
+    return true
+  } catch (error) {
+    console.error(
+      'Unable to join community:',
+      error.response?.data || error
+    )
+    return false
+  }
+}, [joinedCommunities])
 
   const toggleLike = useCallback((postId) => {
     setPosts((current) =>

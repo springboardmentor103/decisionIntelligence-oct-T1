@@ -6,6 +6,8 @@ import com.decisionhub.backend.dto.CreateDecisionRequest;
 import com.decisionhub.backend.dto.DecisionResponse;
 import com.decisionhub.backend.dto.OptionRequest;
 import com.decisionhub.backend.dto.OptionResponse;
+import com.decisionhub.backend.entity.Community;
+import com.decisionhub.backend.repository.CommunityRepository;
 
 import com.decisionhub.backend.entity.Decision;
 import com.decisionhub.backend.entity.DecisionStatus;
@@ -43,6 +45,7 @@ public class DecisionServiceImpl implements DecisionService {
     private final ComparisonCriteriaRepository comparisonCriteriaRepository;
     private final VoteRepository voteRepository;
 private final BallotSelectionRepository ballotSelectionRepository;
+private final CommunityRepository communityRepository;
 
     public DecisionServiceImpl(
         DecisionRepository decisionRepository,
@@ -50,7 +53,8 @@ private final BallotSelectionRepository ballotSelectionRepository;
         OptionRepository optionRepository,
         ComparisonCriteriaRepository comparisonCriteriaRepository,
         VoteRepository voteRepository,
-        BallotSelectionRepository ballotSelectionRepository) {
+        BallotSelectionRepository ballotSelectionRepository,
+        CommunityRepository communityRepository) {
 
     this.decisionRepository = decisionRepository;
     this.userRepository = userRepository;
@@ -58,6 +62,7 @@ private final BallotSelectionRepository ballotSelectionRepository;
     this.comparisonCriteriaRepository = comparisonCriteriaRepository;
     this.voteRepository = voteRepository;
     this.ballotSelectionRepository = ballotSelectionRepository;
+    this.communityRepository = communityRepository;
 }
 
     // Helper: Find logged-in user
@@ -258,6 +263,14 @@ public DecisionResponse createDecision(
 
     User creator = getUser(userEmail);
 
+    Community community = null;
+
+    if (request.communityId() != null) {
+        community = communityRepository.findById(request.communityId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Community not found"));
+    }
+
     Decision decision = Decision.builder()
             .title(request.title())
             .description(request.description())
@@ -268,6 +281,7 @@ public DecisionResponse createDecision(
             .communityPoll(Boolean.TRUE.equals(request.communityPoll()))
             .deadline(request.deadline())
             .creator(creator)
+            .community(community)
             .build();
 
     Decision savedDecision = decisionRepository.save(decision);
@@ -276,7 +290,6 @@ public DecisionResponse createDecision(
 
     return mapToResponse(savedDecision);
 }
-
     // API 2: Retrieve Public Decisions
     @Override
     @Transactional(readOnly = true)
@@ -348,6 +361,13 @@ public List<DecisionResponse> getCommunityPolls() {
         decision.setTitle(request.title());
         decision.setDescription(request.description());
         decision.setCategory(request.category());
+        if (request.communityId() != null) {
+    Community community = communityRepository.findById(request.communityId())
+            .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Community not found"));
+
+    decision.setCommunity(community);
+}
         decision.setVisibility(request.visibility());
         decision.setPollType(request.pollType());
         if (request.communityPoll() != null) {

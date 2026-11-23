@@ -22,6 +22,8 @@ public record CreateDecisionRequest(
     @NotBlank(message = "Description is required")
     String description,
 
+    Long communityId,
+
     @NotBlank(message = "Category is required")
     @Size(max = 50, message = "Category cannot exceed 50 characters")
     String category,

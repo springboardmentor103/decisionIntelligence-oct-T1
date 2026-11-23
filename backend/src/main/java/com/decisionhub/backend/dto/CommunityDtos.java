@@ -15,14 +15,15 @@ public class CommunityDtos {
     ) {}
 
     public record CommunityResponse(
-            Long id,
-            String name,
-            String description,
-            Long creatorId,
-            String creatorName,
-            long memberCount,
-            LocalDateTime createdAt
-    ) {}
+        Long id,
+        String name,
+        String description,
+        Long creatorId,
+        String creatorName,
+        long memberCount,
+        long decisionCount,
+        LocalDateTime createdAt
+) {}
 
     public record CommunityMemberResponse(
             Long userId,

@@ -22,6 +22,7 @@ public class CommunityServiceImpl implements CommunityService {
     private final CommunityRepository communityRepository;
     private final CommunityMemberRepository memberRepository;
     private final UserRepository userRepository;
+    private final DecisionRepository decisionRepository;
 
     private User getUser(String email) {
         return userRepository.findByEmail(email)
@@ -52,24 +53,28 @@ public class CommunityServiceImpl implements CommunityService {
     }
 
     private CommunityDtos.CommunityResponse mapCommunity(
-            Community community
-    ) {
-        long count = memberRepository
-                .findByCommunityId(community.getId())
-                .stream()
-                .filter(this::isActive)
-                .count();
+        Community community
+) {
+    long memberCount = memberRepository
+            .countByCommunityIdAndStatus(
+                    community.getId(),
+                    CommunityMembershipStatus.ACTIVE
+            );
 
-        return new CommunityDtos.CommunityResponse(
-                community.getId(),
-                community.getName(),
-                community.getDescription(),
-                community.getCreator().getId(),
-                community.getCreator().getFullName(),
-                count,
-                community.getCreatedAt()
-        );
-    }
+    long decisionCount = decisionRepository
+            .countByCommunityId(community.getId());
+
+    return new CommunityDtos.CommunityResponse(
+            community.getId(),
+            community.getName(),
+            community.getDescription(),
+            community.getCreator().getId(),
+            community.getCreator().getFullName(),
+            memberCount,
+            decisionCount,
+            community.getCreatedAt()
+    );
+}
 
     @Override
     public CommunityDtos.CommunityResponse createCommunity(
