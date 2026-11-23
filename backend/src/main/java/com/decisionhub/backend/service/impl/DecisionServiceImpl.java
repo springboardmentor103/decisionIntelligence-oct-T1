@@ -1,4 +1,5 @@
 
+
 package com.decisionhub.backend.service.impl;
 
 import com.decisionhub.backend.dto.CreateDecisionRequest;
@@ -11,6 +12,8 @@ import com.decisionhub.backend.entity.DecisionStatus;
 import com.decisionhub.backend.entity.DecisionVisibility;
 import com.decisionhub.backend.entity.Option;
 import com.decisionhub.backend.entity.User;
+import com.decisionhub.backend.repository.VoteRepository;
+import com.decisionhub.backend.repository.BallotSelectionRepository;
 
 import com.decisionhub.backend.repository.DecisionRepository;
 import com.decisionhub.backend.repository.OptionRepository;
@@ -38,17 +41,23 @@ public class DecisionServiceImpl implements DecisionService {
     private final UserRepository userRepository;
     private final OptionRepository optionRepository;
     private final ComparisonCriteriaRepository comparisonCriteriaRepository;
+    private final VoteRepository voteRepository;
+private final BallotSelectionRepository ballotSelectionRepository;
 
     public DecisionServiceImpl(
         DecisionRepository decisionRepository,
         UserRepository userRepository,
         OptionRepository optionRepository,
-        ComparisonCriteriaRepository comparisonCriteriaRepository) {
+        ComparisonCriteriaRepository comparisonCriteriaRepository,
+        VoteRepository voteRepository,
+        BallotSelectionRepository ballotSelectionRepository) {
 
     this.decisionRepository = decisionRepository;
     this.userRepository = userRepository;
     this.optionRepository = optionRepository;
     this.comparisonCriteriaRepository = comparisonCriteriaRepository;
+    this.voteRepository = voteRepository;
+    this.ballotSelectionRepository = ballotSelectionRepository;
 }
 
     // Helper: Find logged-in user
@@ -137,6 +146,88 @@ private void synchronizeCriteria(
     comparisonCriteriaRepository.deleteAll(existingByName.values());
 }
 
+    // Helper: Synchronize decision options
+    private void synchronizeOptions(
+            Decision decision,
+            List<OptionRequest> requestedOptions) {
+
+        // If options are not sent, preserve existing options
+        if (requestedOptions == null) {
+            return;
+        }
+
+        List<Option> existingOptions =
+                optionRepository.findByDecisionIdOrderByDisplayOrderAsc(
+                        decision.getId()
+                );
+
+        Map<Long, Option> existingById = new HashMap<>();
+
+        for (Option option : existingOptions) {
+            existingById.put(option.getId(), option);
+        }
+
+        List<Option> optionsToSave = new java.util.ArrayList<>();
+
+        for (int index = 0; index < requestedOptions.size(); index++) {
+
+            OptionRequest optionRequest = requestedOptions.get(index);
+            Option option;
+
+            if (optionRequest.id() != null) {
+
+                option = existingById.remove(optionRequest.id());
+
+                if (option == null) {
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "Invalid option ID for this decision"
+                    );
+                }
+
+            } else {
+                option = new Option();
+                option.setDecision(decision);
+            }
+
+            option.setTitle(optionRequest.title());
+            option.setDescription(optionRequest.description());
+            option.setDisplayOrder(
+                    optionRequest.displayOrder() == null
+                            ? index
+                            : optionRequest.displayOrder()
+            );
+
+            optionsToSave.add(option);
+        }
+
+        // Check whether removed options have voting history
+        for (Option removedOption : existingById.values()) {
+
+            long voteCount =
+                    voteRepository.countByOptionId(removedOption.getId());
+
+            long selectionCount =
+                    ballotSelectionRepository.countByOptionId(
+                            removedOption.getId()
+                    );
+
+            if (voteCount > 0 || selectionCount > 0) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Cannot remove option '" + removedOption.getTitle()
+                                + "' because it has existing votes or ballot selections."
+                );
+            }
+        }
+
+        // Save new and updated options
+        optionRepository.saveAll(optionsToSave);
+
+        // Delete options removed by the user
+        optionRepository.deleteAll(existingById.values());
+    }
+
     // Helper: Convert Decision entity to response
     private DecisionResponse mapToResponse(Decision decision) {
 
@@ -158,7 +249,6 @@ private void synchronizeCriteria(
                 decision.isCommunityPoll()
         );
     }
-
     // API 1: Create Decision
 @Override
 @Transactional
@@ -182,11 +272,11 @@ public DecisionResponse createDecision(
 
     Decision savedDecision = decisionRepository.save(decision);
 
-    // Save evaluation criteria for the newly created decision
     synchronizeCriteria(savedDecision, request.criteria());
 
     return mapToResponse(savedDecision);
 }
+
     // API 2: Retrieve Public Decisions
     @Override
     @Transactional(readOnly = true)
@@ -268,6 +358,8 @@ public List<DecisionResponse> getCommunityPolls() {
 Decision savedDecision = decisionRepository.save(decision);
 
 synchronizeCriteria(savedDecision, request.criteria());
+
+synchronizeOptions(savedDecision, request.options());
 
 return mapToResponse(savedDecision);
     }

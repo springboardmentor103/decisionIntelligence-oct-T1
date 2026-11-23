@@ -1,6 +1,7 @@
 
 
 package com.decisionhub.backend.dto;
+import com.decisionhub.backend.dto.OptionRequest;
 
 import com.decisionhub.backend.entity.DecisionVisibility;
 import com.decisionhub.backend.entity.PollType;
@@ -35,6 +36,8 @@ public record CreateDecisionRequest(
     Boolean communityPoll,
 
     @Valid
-    List<ComparisonCriteriaRequest> criteria
+    List<ComparisonCriteriaRequest> criteria,
+    @Valid
+    List<OptionRequest> options
 
 ) {}

@@ -8,6 +8,7 @@ import {
   updateDecision,
   addDecisionOption,
   getDecisionCriteria,
+  getDecisionOptions,
 } from '../services/decisionService'
 
 const defaultForm = {
@@ -47,15 +48,25 @@ console.log('Existing criteria:', editing?.criteria)
 useEffect(() => {
   if (!editing?.id) return
 
-  getDecisionCriteria(editing.id)
-    .then((savedCriteria) => {
+  Promise.all([
+    getDecisionCriteria(editing.id),
+    getDecisionOptions(editing.id),
+  ])
+    .then(([savedCriteria, savedOptions]) => {
       setForm((current) => ({
         ...current,
         criteria: savedCriteria || [],
+        options: (savedOptions || []).map((option) => ({
+          ...option,
+          pros: [],
+          cons: [],
+          scores: {},
+        })),
       }))
     })
     .catch((error) => {
-      console.error('Failed to load existing criteria:', error)
+      console.error('Failed to load decision data:', error)
+      setError('Unable to load existing decision options and criteria.')
     })
 }, [editing?.id])
   const [optionDraft, setOptionDraft] = useState({ title: '', description: '', pros: '', cons: '' })
@@ -133,35 +144,30 @@ if (!form.pollType) {
   pollType: form.pollType,
   deadline: `${form.deadline}T23:59:00`,
 
-  // Send evaluation criteria to backend
+  // Send evaluation criteria
   criteria: form.criteria.map((criterion) => ({
     name: criterion.name,
     description: criterion.description || '',
     weight: Number(criterion.weight),
+  })),
+
+  // Send options separately
+  options: form.options.map((option, index) => ({
+    id: option.id || null,
+    title: option.title,
+    description: option.description || '',
+    displayOrder: index,
   })),
 }
 
     let savedDecision
 
 if (editing?.id) {
-  // Update the existing decision
   savedDecision = await updateDecision(editing.id, decisionData)
-
-  // Add only newly created options
-  for (const [index, option] of form.options.entries()) {
-    if (!option.id) {
-      await addDecisionOption(editing.id, {
-        title: option.title,
-        description: option.description || '',
-        displayOrder: index,
-      })
-    }
-  }
 } else {
-  // Create a new decision
   savedDecision = await createDecision(decisionData)
 
-  // Add all options for the new decision
+  // Add options separately for newly created decisions
   for (const [index, option] of form.options.entries()) {
     await addDecisionOption(savedDecision.id, {
       title: option.title,
@@ -208,7 +214,7 @@ if (editing?.id) {
             <input value={form.title} onChange={(event) => updateForm('title', event.target.value)} placeholder="e.g. Which framework should we use?" />
           </label>
           <label className="form-control form-control--wide">Decision Description
-            <textarea rows="3" value={form.description} onChange={(event) => updateForm('description', event.target.value)} placeholder="Give context so others can weigh in" />
+            <textarea rows="3" value={form.description} onChange={(event) => updateForm('description', event.target.value)} placeholder="Describe the situation, provide relevant details, and explain what needs to be decided." />
           </label>
           <label className="form-control">Category
             <select value={form.category} onChange={(event) => updateForm('category', event.target.value)}>
