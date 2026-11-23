@@ -273,17 +273,21 @@ return mapToResponse(savedDecision);
     }
 
     // API 6: Delete Decision
-    @Override
-    @Transactional
-    public void deleteDecision(Long decisionId, String userEmail) {
+@Override
+@Transactional
+public void deleteDecision(Long decisionId, String userEmail) {
 
-        Decision decision = getDecision(decisionId);
-        User user = getUser(userEmail);
+    Decision decision = getDecision(decisionId);
+    User user = getUser(userEmail);
 
-        checkOwnership(decision, user);
+    checkOwnership(decision, user);
 
-        decisionRepository.delete(decision);
-    }
+    // Delete evaluation criteria linked to this decision first
+    comparisonCriteriaRepository.deleteByDecisionId(decisionId);
+
+    // Then delete the decision
+    decisionRepository.delete(decision);
+}
     // API 9: Retrieve Evaluation Criteria
 @Override
 @Transactional(readOnly = true)
