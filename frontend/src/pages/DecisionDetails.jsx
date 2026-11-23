@@ -1,17 +1,42 @@
 import { ArrowLeft, CalendarDays, UsersRound } from 'lucide-react'
 import { Link, useLocation, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import PageHeading from '../components/PageHeading'
 import { StatusBadge } from '../components/DecisionCard'
 import { useDecisions } from '../context/DecisionContext'
-
+import { getDecisionCriteria } from '../services/decisionService'
 export default function DecisionDetails() {
-  const { decisionId } = useParams()
   const location = useLocation()
-   const backPath = location.state?.from || '/explore'
+  const { decisionId } = useParams()
+
+  const backPath =
+    location.state?.fromState?.from ||
+    location.state?.from ||
+    '/explore'
+
   const { decisions, votes } = useDecisions()
- const decision = decisions.find((item) => String(item.id) === String(decisionId)) || decisions[0]
-  
+
+  const decision = decisions.find(
+    (item) => String(item.id) === String(decisionId)
+  )
+
+  const [criteria, setCriteria] = useState(decision?.criteria || [])
+
   const selectedVote = votes[decision?.id]
+
+  useEffect(() => {
+    setCriteria(decision?.criteria || [])
+
+    if (!decisionId) return
+
+    getDecisionCriteria(decisionId)
+      .then((data) => {
+        setCriteria(data || [])
+      })
+      .catch((error) => {
+        console.error('Failed to load evaluation criteria:', error)
+      })
+  }, [decisionId, decision?.id])
 
   if (!decision) {
     return <div className="page-block"><div className="panel-card empty-state"><h2>Decision not found</h2><Link to="/explore" className="button button--primary">Explore decisions</Link></div></div>
@@ -29,7 +54,8 @@ export default function DecisionDetails() {
         actions={<StatusBadge status={decision.status} />}
       />
       <div className="detail-meta"><span>{decision.category}</span><span><CalendarDays size={14} /> Deadline {new Date(`${decision.deadline}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span><span><UsersRound size={14} /> {decision.participants} participants</span><span>{decision.visibility}</span></div>
-      <section className="panel-card decision-options-panel">
+      <section className="panel-card decision-about-panel">
+  
         <div className="panel-heading"><h2>Options</h2><Link to={`/compare-options?decision=${decision.id}`} className="text-link">Compare options</Link></div>
         {decision.options.map((option) => (
           <article className={`detail-option ${selectedVote === option.title ? 'detail-option--selected' : ''}`} key={option.title}>
@@ -38,10 +64,10 @@ export default function DecisionDetails() {
           </article>
         ))}
         {decision.status === 'Active' && !selectedVote ? (
-      <Link
+      
+  <Link
   to={`/vote/${decision.id}`}
   state={{
-    from: location.pathname,
     fromState: location.state,
   }}
   className="button button--primary vote-link"
@@ -53,23 +79,22 @@ export default function DecisionDetails() {
         {selectedVote ? <p className="form-success" role="status">Your vote was recorded for this session.</p> : null}
         
       </section>
-      <section className="panel-card decision-about-panel"><h2>Evaluation criteria</h2><div className="criteria-chips">{decision.criteria.map((criterion) => <span key={criterion.name}>{criterion.name}<strong>{criterion.weight}%</strong></span>)}</div></section>
       <section className="panel-card decision-about-panel">
-        <h2>Pros and cons</h2>
-        <div className="pros-cons-grid">
-          {decision.options.map((option) => (
-            <article className="pros-cons-card" key={option.title}>
-              <h3>{option.title}</h3>
-              <div><strong className="strength">Pros</strong>
-                {option.pros?.length ? <ul>{option.pros.map((pro) => <li key={pro}>{pro}</li>)}</ul> : <p className="muted-copy">No pros listed.</p>}
-              </div>
-              <div><strong className="weakness">Cons</strong>
-                {option.cons?.length ? <ul>{option.cons.map((con) => <li key={con}>{con}</li>)}</ul> : <p className="muted-copy">No cons listed.</p>}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+  <h2>Evaluation criteria</h2>
+
+  <div className="criteria-chips">
+    {criteria.length > 0 ? (
+      criteria.map((criterion) => (
+        <span key={criterion.id || criterion.name}>
+          {criterion.name}
+          <strong>{criterion.weight}%</strong>
+        </span>
+      ))
+    ) : (
+      <p className="muted-copy">No evaluation criteria added.</p>
+    )}
+  </div>
+</section>
     </div>
   )
 }

@@ -58,6 +58,14 @@ removeDecision(decisionId)
         setError('')
 
         const myDecisions = await getMyDecisions()
+        console.log(
+  'Criteria received from API:',
+  myDecisions.map((decision) => ({
+    id: decision.id,
+    title: decision.title,
+    criteria: decision.criteria,
+  }))
+)
 
         const decisionsWithOptions = await Promise.all(
           (myDecisions || []).map(async (decision) => {

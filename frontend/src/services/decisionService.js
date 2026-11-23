@@ -58,3 +58,7 @@ export const deleteDecision = async (decisionId) => {
   const response = await api.delete(`/decisions/${decisionId}`)
   return response.data
 }
+export const getDecisionCriteria = async (decisionId) => {
+  const response = await api.get(`/decisions/${decisionId}/criteria`)
+  return response.data.data
+}

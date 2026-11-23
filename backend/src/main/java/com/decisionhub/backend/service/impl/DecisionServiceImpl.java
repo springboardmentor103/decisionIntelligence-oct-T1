@@ -22,6 +22,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import com.decisionhub.backend.dto.ComparisonCriteriaRequest;
+import com.decisionhub.backend.entity.ComparisonCriteria;
+import com.decisionhub.backend.repository.ComparisonCriteriaRepository;
+import java.util.Map;
+import java.util.HashMap;
+import com.decisionhub.backend.dto.ComparisonCriteriaResponse;
 
 import java.util.List;
 
@@ -31,16 +37,19 @@ public class DecisionServiceImpl implements DecisionService {
     private final DecisionRepository decisionRepository;
     private final UserRepository userRepository;
     private final OptionRepository optionRepository;
+    private final ComparisonCriteriaRepository comparisonCriteriaRepository;
 
     public DecisionServiceImpl(
-            DecisionRepository decisionRepository,
-            UserRepository userRepository,
-            OptionRepository optionRepository) {
+        DecisionRepository decisionRepository,
+        UserRepository userRepository,
+        OptionRepository optionRepository,
+        ComparisonCriteriaRepository comparisonCriteriaRepository) {
 
-        this.decisionRepository = decisionRepository;
-        this.userRepository = userRepository;
-        this.optionRepository = optionRepository;
-    }
+    this.decisionRepository = decisionRepository;
+    this.userRepository = userRepository;
+    this.optionRepository = optionRepository;
+    this.comparisonCriteriaRepository = comparisonCriteriaRepository;
+}
 
     // Helper: Find logged-in user
     private User getUser(String email) {
@@ -74,6 +83,59 @@ public class DecisionServiceImpl implements DecisionService {
                     "You cannot access this private decision");
         }
     }
+    // Helper: Save and synchronize evaluation criteria
+private void synchronizeCriteria(
+        Decision decision,
+        List<ComparisonCriteriaRequest> requestedCriteria) {
+
+    // If criteria are not sent, preserve the existing criteria
+    if (requestedCriteria == null) {
+        return;
+    }
+
+    List<ComparisonCriteria> existingCriteria =
+            comparisonCriteriaRepository
+                    .findByDecisionIdOrderByIdAsc(decision.getId());
+
+    Map<String, ComparisonCriteria> existingByName = new HashMap<>();
+
+    for (ComparisonCriteria criterion : existingCriteria) {
+        existingByName.put(
+                criterion.getName().toLowerCase(),
+                criterion
+        );
+    }
+
+    List<ComparisonCriteria> criteriaToSave = new java.util.ArrayList<>();
+
+    for (ComparisonCriteriaRequest request : requestedCriteria) {
+
+        String key = request.name().toLowerCase();
+
+        ComparisonCriteria criterion = existingByName.remove(key);
+
+        // Reuse existing criterion or create a new one
+        if (criterion == null) {
+            criterion = new ComparisonCriteria();
+            criterion.setDecision(decision);
+            criterion.setName(request.name());
+        }
+
+        criterion.setName(request.name());
+        criterion.setDescription(request.description());
+        criterion.setWeight(
+                request.weight() == null ? 1.0 : request.weight()
+        );
+
+        criteriaToSave.add(criterion);
+    }
+
+    // Save new and updated criteria
+    comparisonCriteriaRepository.saveAll(criteriaToSave);
+
+    // Delete only criteria removed by the user
+    comparisonCriteriaRepository.deleteAll(existingByName.values());
+}
 
     // Helper: Convert Decision entity to response
     private DecisionResponse mapToResponse(Decision decision) {
@@ -98,29 +160,33 @@ public class DecisionServiceImpl implements DecisionService {
     }
 
     // API 1: Create Decision
-    @Override
-    @Transactional
-    public DecisionResponse createDecision(
-            CreateDecisionRequest request,
-            String userEmail) {
+@Override
+@Transactional
+public DecisionResponse createDecision(
+        CreateDecisionRequest request,
+        String userEmail) {
 
-        User creator = getUser(userEmail);
+    User creator = getUser(userEmail);
 
-        Decision decision = Decision.builder()
-                .title(request.title())
-                .description(request.description())
-                .category(request.category())
-                .visibility(request.visibility())
-                .status(DecisionStatus.ACTIVE)
-                .pollType(request.pollType())
-                .communityPoll(Boolean.TRUE.equals(request.communityPoll()))
-                .deadline(request.deadline())
-                .creator(creator)
-                .build();
+    Decision decision = Decision.builder()
+            .title(request.title())
+            .description(request.description())
+            .category(request.category())
+            .visibility(request.visibility())
+            .status(DecisionStatus.ACTIVE)
+            .pollType(request.pollType())
+            .communityPoll(Boolean.TRUE.equals(request.communityPoll()))
+            .deadline(request.deadline())
+            .creator(creator)
+            .build();
 
-        return mapToResponse(decisionRepository.save(decision));
-    }
+    Decision savedDecision = decisionRepository.save(decision);
 
+    // Save evaluation criteria for the newly created decision
+    synchronizeCriteria(savedDecision, request.criteria());
+
+    return mapToResponse(savedDecision);
+}
     // API 2: Retrieve Public Decisions
     @Override
     @Transactional(readOnly = true)
@@ -197,9 +263,13 @@ public List<DecisionResponse> getCommunityPolls() {
         if (request.communityPoll() != null) {
     decision.setCommunityPoll(request.communityPoll());
 }
-        decision.setDeadline(request.deadline());
+       decision.setDeadline(request.deadline());
 
-        return mapToResponse(decisionRepository.save(decision));
+Decision savedDecision = decisionRepository.save(decision);
+
+synchronizeCriteria(savedDecision, request.criteria());
+
+return mapToResponse(savedDecision);
     }
 
     // API 6: Delete Decision
@@ -214,6 +284,30 @@ public List<DecisionResponse> getCommunityPolls() {
 
         decisionRepository.delete(decision);
     }
+    // API 9: Retrieve Evaluation Criteria
+@Override
+@Transactional(readOnly = true)
+public List<ComparisonCriteriaResponse> getDecisionCriteria(
+        Long decisionId,
+        String userEmail) {
+
+    Decision decision = getDecision(decisionId);
+    User user = getUser(userEmail);
+
+    checkVisibility(decision, user);
+
+    return comparisonCriteriaRepository
+            .findByDecisionIdOrderByIdAsc(decisionId)
+            .stream()
+            .map(criterion -> new ComparisonCriteriaResponse(
+                    criterion.getId(),
+                    criterion.getDecision().getId(),
+                    criterion.getName(),
+                    criterion.getDescription(),
+                    criterion.getWeight()
+            ))
+            .toList();
+}
 
     // API 7: Add Option
     @Override

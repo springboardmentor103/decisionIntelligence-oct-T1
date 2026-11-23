@@ -5,6 +5,7 @@ import com.decisionhub.backend.dto.CreateDecisionRequest;
 import com.decisionhub.backend.dto.DecisionResponse;
 import com.decisionhub.backend.dto.OptionRequest;
 import com.decisionhub.backend.dto.OptionResponse;
+import com.decisionhub.backend.dto.ComparisonCriteriaResponse;
 
 import java.util.List;
 
@@ -43,4 +44,8 @@ public interface DecisionService {
         Long decisionId,
         String userEmail
     );
+    List<ComparisonCriteriaResponse> getDecisionCriteria(
+    Long decisionId,
+    String userEmail
+);
 }

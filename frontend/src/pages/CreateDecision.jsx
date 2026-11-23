@@ -1,9 +1,14 @@
 import { Plus, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
-import { createDecision, updateDecision,addDecisionOption } from '../services/decisionService'
+import {
+  createDecision,
+  updateDecision,
+  addDecisionOption,
+  getDecisionCriteria,
+} from '../services/decisionService'
 
 const defaultForm = {
   title: '',
@@ -19,6 +24,8 @@ const defaultForm = {
 export default function CreateDecision() {
   const location = useLocation()
   const editing = location.state?.decision
+  console.log('Editing decision:', editing)
+console.log('Existing criteria:', editing?.criteria)
   const navigate = useNavigate()
   const { saveDecision } = useDecisions()
  const [form, setForm] = useState({
@@ -37,6 +44,20 @@ export default function CreateDecision() {
   options: editing?.options || [],
   criteria: editing?.criteria || [],
 })
+useEffect(() => {
+  if (!editing?.id) return
+
+  getDecisionCriteria(editing.id)
+    .then((savedCriteria) => {
+      setForm((current) => ({
+        ...current,
+        criteria: savedCriteria || [],
+      }))
+    })
+    .catch((error) => {
+      console.error('Failed to load existing criteria:', error)
+    })
+}, [editing?.id])
   const [optionDraft, setOptionDraft] = useState({ title: '', description: '', pros: '', cons: '' })
   const [criterionDraft, setCriterionDraft] = useState({ name: '', weight: '' })
   const [error, setError] = useState('')
@@ -105,13 +126,20 @@ if (!form.pollType) {
     
 
     const decisionData = {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      category: form.category,
-      visibility: form.visibility === 'Community' ? 'PUBLIC' : 'PRIVATE',
-      pollType: form.pollType,
-      deadline: `${form.deadline}T23:59:00`,
-    }
+  title: form.title.trim(),
+  description: form.description.trim(),
+  category: form.category,
+  visibility: form.visibility === 'Community' ? 'PUBLIC' : 'PRIVATE',
+  pollType: form.pollType,
+  deadline: `${form.deadline}T23:59:00`,
+
+  // Send evaluation criteria to backend
+  criteria: form.criteria.map((criterion) => ({
+    name: criterion.name,
+    description: criterion.description || '',
+    weight: Number(criterion.weight),
+  })),
+}
 
     let savedDecision
 

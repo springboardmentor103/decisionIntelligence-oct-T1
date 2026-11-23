@@ -33,14 +33,29 @@ useEffect(() => {
     try {
       const data = await getMyDecisions()
 
-      const normalized = (data || []).map((decision) => ({
-        ...decision,
-        status:
-          decision.status === 'ACTIVE' ? 'Active' :
-          decision.status === 'DRAFT' ? 'Draft' :
-          decision.status === 'COMPLETED' ? 'Completed' :
-          decision.status,
-      }))
+      const normalized = (data || []).map((decision) => {
+  const deadline = decision.deadline
+  const isExpired =
+    deadline &&
+    new Date(deadline).getTime() < new Date().setHours(0, 0, 0, 0)
+
+  let status = decision.status
+
+  if (['COMPLETED', 'CLOSED'].includes(status)) {
+    status = 'Completed'
+  } else if (status === 'DRAFT') {
+    status = 'Draft'
+  } else if (status === 'ACTIVE' && isExpired) {
+    status = 'Expired'
+  } else if (status === 'ACTIVE') {
+    status = 'Active'
+  }
+
+  return {
+    ...decision,
+    status,
+  }
+})
 
       setMyDecisions(normalized)
     } catch (error) {
@@ -52,7 +67,9 @@ useEffect(() => {
 }, [])
   
   const active = myDecisions.filter((decision) => decision.status === 'Active')
-  const completed = myDecisions.filter((decision) => decision.status === 'Completed')
+  const completed = myDecisions.filter((decision) =>
+  ['Completed', 'Expired'].includes(decision.status)
+)
   const recentEvents = [...activityEvents]
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, 4)
@@ -178,7 +195,15 @@ useEffect(() => {
                 <tr key={decision.id}>
                   <td><Link to={`/decision/${decision.id}`} className="table-title">{decision.title}</Link></td>
                   <td>{decision.category}</td>
-                  <td>{new Date(`${decision.deadline}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                  <td>
+  {decision.deadline
+    ? new Date(decision.deadline).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : 'No deadline'}
+</td>
                   <td><StatusBadge status={decision.status} /></td>
                 </tr>
               ))}

@@ -1,13 +1,16 @@
 
+
 package com.decisionhub.backend.dto;
 
 import com.decisionhub.backend.entity.DecisionVisibility;
 import com.decisionhub.backend.entity.PollType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record CreateDecisionRequest(
 
@@ -29,6 +32,9 @@ public record CreateDecisionRequest(
     PollType pollType,
 
     LocalDateTime deadline,
-    Boolean communityPoll
+    Boolean communityPoll,
+
+    @Valid
+    List<ComparisonCriteriaRequest> criteria
 
 ) {}
