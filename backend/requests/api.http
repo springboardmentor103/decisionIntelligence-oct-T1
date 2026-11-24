@@ -102,3 +102,163 @@ Authorization: Bearer invalid-or-tampered-token-12345
 GET {{baseUrl}}/api/v1/decisions HTTP/1.1
 Authorization: Bearer {{authToken}}
 
+
+### ==============================================================================
+### 4. SETUP DECISIONS FOR DISCUSSION TESTING
+### ==============================================================================
+
+### 4.1 Create Public Decision
+# @name createPublicDecision
+POST {{baseUrl}}/api/v1/decisions HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Adopt Event-Driven Architecture",
+  "description": "Discussion on adopting Apache Kafka for asynchronous communication.",
+  "category": "Architecture",
+  "visibility": "PUBLIC",
+  "pollType": "SINGLE_CHOICE",
+  "options": [
+    { "title": "Kafka", "description": "High-throughput event streaming" },
+    { "title": "RabbitMQ", "description": "Flexible AMQP routing" }
+  ]
+}
+
+### Store Decision ID
+@decisionId = {{createPublicDecision.response.body.data.id}}
+
+### 4.2 Create Private Decision (For Access Control Tests)
+# @name createPrivateDecision
+POST {{baseUrl}}/api/v1/decisions HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "title": "Confidential Executive Strategy",
+  "description": "Internal restructuring and resource reallocation discussion.",
+  "category": "Management",
+  "visibility": "PRIVATE",
+  "pollType": "SINGLE_CHOICE",
+  "options": [
+    { "title": "Option A", "description": "Internal realignment" },
+    { "title": "Option B", "description": "External hiring" }
+  ]
+}
+
+### Store Private Decision ID
+@privateDecisionId = {{createPrivateDecision.response.body.data.id}}
+
+
+### ==============================================================================
+### 5. DISCUSSION MANAGEMENT (MILESTONE 3 - PHASE 1)
+### ==============================================================================
+
+### 5.1 Create Top-Level Comment on Decision
+# @name createComment
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/comments HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "content": "Kafka offers superior event persistence and partition scalability compared to traditional message brokers."
+}
+
+### Store Comment ID
+@commentId = {{createComment.response.body.data.id}}
+
+### 5.2 Create Second Comment on Decision
+# @name createSecondComment
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/comments HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "content": "We must also consider operational complexity and ZooKeeper/KRaft quorum management."
+}
+
+### 5.3 Retrieve Comments for Decision (Paginated, Chronological)
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/comments?page=0&size=10&sortBy=createdAt&sortDir=asc HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 5.4 Update Own Comment
+PUT {{baseUrl}}/api/v1/comments/{{commentId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "content": "Kafka offers superior event persistence, partition scalability, and strict ordering guarantees per partition."
+}
+
+### 5.5 Reply to a Comment (Threaded Discussion)
+# @name createReply
+POST {{baseUrl}}/api/v1/comments/{{commentId}}/replies HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "content": "Agreed, and consumer groups simplify horizontal scaling of worker microservices."
+}
+
+### Store Reply ID
+@replyId = {{createReply.response.body.data.id}}
+
+### 5.6 Retrieve Threaded Replies for Parent Comment (Paginated)
+GET {{baseUrl}}/api/v1/comments/{{commentId}}/replies?page=0&size=10&sortBy=createdAt&sortDir=asc HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 5.7 Retrieve Discussion Summary for Decision
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/discussions/summary HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 5.8 Register Second User (Bob) for Authorization Testing
+# @name registerBob
+POST {{baseUrl}}/api/v1/auth/register HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "fullName": "Bob Miller",
+  "email": "bob@example.com",
+  "password": "Password123!"
+}
+
+### 5.9 Login Second User (Bob)
+# @name loginBob
+POST {{baseUrl}}/api/v1/auth/login HTTP/1.1
+Content-Type: {{contentType}}
+
+{
+  "email": "bob@example.com",
+  "password": "Password123!"
+}
+
+### Store Bob's Token
+@bobToken = {{loginBob.response.body.token}}
+
+### 5.10 Attempt Unauthorized Comment Modification (Bob edits Alice's comment - Expected: 403 Forbidden)
+PUT {{baseUrl}}/api/v1/comments/{{commentId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "content": "Hacked content: Bob attempting to modify Alice's comment."
+}
+
+### 5.11 Attempt to Comment on Private Decision Without Permission (Expected: 403 Forbidden)
+POST {{baseUrl}}/api/v1/decisions/{{privateDecisionId}}/comments HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "content": "Bob attempting to access and comment on a private executive decision."
+}
+
+### 5.12 Delete Own Comment (Soft Deletion - Preserves Child Replies)
+DELETE {{baseUrl}}/api/v1/comments/{{commentId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 5.13 Verify Soft Deletion Preserves Threaded Discussion
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/comments HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+

@@ -279,3 +279,113 @@ cd backend
 .\mvnw.cmd package
 ```
 Output artifact: `target/backend-0.0.1-SNAPSHOT.jar`
+
+---
+
+## 7. Discussion Management (Milestone 3 - Phase 1)
+
+DecisionHub provides threaded discussion threads, replies, and community moderation for decisions.
+
+### 1. Discussion & Comment Entity Model
+
+```mermaid
+erDiagram
+    DECISIONS ||--o{ COMMENTS : "contains (1:N)"
+    USERS ||--o{ COMMENTS : "writes (1:N)"
+    COMMENTS ||--o{ COMMENTS : "parent_of (1:N replies)"
+
+    COMMENTS {
+        bigint id PK
+        bigint decision_id FK "fk_comments_decision"
+        bigint user_id FK "fk_comments_user"
+        bigint parent_comment_id FK "fk_comments_parent"
+        text content
+        boolean is_deleted
+        datetime created_at
+        datetime updated_at
+    }
+```
+
+- **Threaded Hierarchies**: Top-level comments have `parent_comment_id = NULL`. Replies point to their parent `Comment`.
+- **Soft Deletion Policy**: When a comment is deleted, `is_deleted = true` and `content = "[This comment has been deleted]"`. Child replies remain intact and linked in the thread.
+
+---
+
+### 2. Discussion Permissions & Access Control
+
+| Action | Comment Author | Community Moderator | Global Admin (`ROLE_ADMIN`) | Non-Member / Other User |
+|---|:---:|:---:|:---:|:---:|
+| **Create Comment / Reply** | Yes | Yes | Yes | If decision is public or active community member |
+| **View Comments** | Yes | Yes | Yes | Public or authorized member |
+| **Edit Comment** | **Yes** | No | No | No |
+| **Delete / Moderate Comment** | **Yes** | **Yes (in community)** | **Yes (globally)** | No |
+
+---
+
+### 3. API Reference Catalog
+
+Base Path: `/api/v1`
+
+| HTTP Method | Path | Auth Required | Description |
+|---|---|:---:|---|
+| `POST` | `/api/v1/decisions/{decisionId}/comments` | Yes | Create top-level comment on a decision |
+| `GET` | `/api/v1/decisions/{decisionId}/comments` | Optional* | Retrieve paginated top-level comments |
+| `PUT` | `/api/v1/comments/{commentId}` | Yes | Edit own comment (author only) |
+| `DELETE` | `/api/v1/comments/{commentId}` | Yes | Delete comment (author, community moderator, admin) |
+| `POST` | `/api/v1/comments/{commentId}/replies` | Yes | Create threaded reply to a comment |
+| `GET` | `/api/v1/comments/{commentId}/replies` | Optional* | Retrieve paginated replies for a parent comment |
+| `GET` | `/api/v1/decisions/{decisionId}/discussions/summary` | Optional* | Retrieve discussion activity metrics |
+
+*\*Public decisions allow public access; private decisions enforce authentication and access restrictions.*
+
+---
+
+### 4. Sample Payloads
+
+#### Create / Update Comment Request
+```json
+{
+  "content": "Kafka offers superior event persistence and partition scalability compared to traditional message brokers."
+}
+```
+
+#### Comment Response DTO
+```json
+{
+  "success": true,
+  "message": "Comment created successfully",
+  "data": {
+    "id": 1,
+    "decisionId": 10,
+    "author": {
+      "id": 1,
+      "fullName": "Alice Johnson",
+      "email": "alice@example.com"
+    },
+    "content": "Kafka offers superior event persistence and partition scalability compared to traditional message brokers.",
+    "parentCommentId": null,
+    "isDeleted": false,
+    "replyCount": 0,
+    "createdAt": "2026-11-24T17:25:00",
+    "updatedAt": "2026-11-24T17:25:00"
+  },
+  "timestamp": "2026-11-24T17:25:00"
+}
+```
+
+#### Discussion Summary Response DTO
+```json
+{
+  "success": true,
+  "message": "Discussion summary retrieved successfully",
+  "data": {
+    "decisionId": 10,
+    "totalComments": 14,
+    "totalTopLevelComments": 5,
+    "totalReplies": 9,
+    "lastActivityAt": "2026-11-24T17:25:30"
+  },
+  "timestamp": "2026-11-24T17:25:30"
+}
+```
+

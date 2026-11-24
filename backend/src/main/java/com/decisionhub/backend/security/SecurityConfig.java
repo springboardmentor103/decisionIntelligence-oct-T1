@@ -50,6 +50,12 @@ public class SecurityConfig {
                     "/api/v1/health/**", "/api/health/**", "/health/**",
                     "/api/v1/auth/register", "/api/v1/auth/login"
                 ).permitAll()
+                .requestMatchers(
+                    org.springframework.http.HttpMethod.GET,
+                    "/api/v1/decisions/*/comments",
+                    "/api/v1/comments/*/replies",
+                    "/api/v1/decisions/*/discussions/summary"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(
