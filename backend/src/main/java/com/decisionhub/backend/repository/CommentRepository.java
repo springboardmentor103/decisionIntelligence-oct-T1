@@ -43,5 +43,15 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 
     @Query("SELECT c.parentComment.id, COUNT(c) FROM Comment c WHERE c.parentComment.id IN :parentIds GROUP BY c.parentComment.id")
     List<Object[]> countRepliesForParentIds(@Param("parentIds") List<Long> parentIds);
+
+    long countByParentCommentIsNull();
+
+    long countByParentCommentIsNotNull();
+
+    @Query("SELECT c.decision.id, c.decision.title, COUNT(c) FROM Comment c WHERE c.deleted = false GROUP BY c.decision.id, c.decision.title ORDER BY COUNT(c) DESC")
+    List<Object[]> findTopDiscussedDecisions(Pageable pageable);
+
+    @Query("SELECT FUNCTION('DATE', c.createdAt), COUNT(c) FROM Comment c WHERE c.deleted = false GROUP BY FUNCTION('DATE', c.createdAt) ORDER BY FUNCTION('DATE', c.createdAt) ASC")
+    List<Object[]> countCommentsDaily();
 }
 

@@ -672,5 +672,228 @@ Base Path: `/api/v1/notifications`
 }
 ```
 
+---
+
+## 10. Milestone 3, Phase 4: Moderation System
+
+DecisionHub provides comprehensive content reporting, community-level moderation workflows, member restriction controls, and persistent moderation audit trails.
+
+### 1. Data Model & Architecture
+
+```mermaid
+erDiagram
+    USERS ||--o{ REPORTS : "submits"
+    DECISIONS ||--o{ REPORTS : "targets"
+    COMMENTS ||--o{ REPORTS : "targets (optional)"
+    FEEDBACKS ||--o{ REPORTS : "targets (optional)"
+    USERS ||--o{ REPORTS : "reviews"
+    USERS ||--o{ MODERATION_HISTORY : "performs"
+    COMMUNITIES ||--o{ MODERATION_HISTORY : "governs"
+
+    REPORTS {
+        bigint id PK
+        bigint user_id FK "fk_reports_user"
+        bigint decision_id FK "fk_reports_decision"
+        bigint comment_id FK "fk_reports_comment"
+        bigint feedback_id FK "fk_reports_feedback"
+        varchar content_type "DECISION, COMMENT, FEEDBACK"
+        bigint content_id
+        varchar report_type "ReportType enum"
+        text description
+        varchar status "ReportStatus enum"
+        bigint reviewed_by_id FK "fk_reports_reviewed_by"
+        datetime reviewed_at
+        varchar resolution_notes
+        varchar action_taken
+        datetime created_at
+        datetime updated_at
+    }
+
+    MODERATION_HISTORY {
+        bigint id PK
+        bigint moderator_id FK "fk_mod_history_moderator"
+        bigint community_id FK "fk_mod_history_community"
+        bigint target_user_id FK "fk_mod_history_target_user"
+        varchar content_type
+        bigint content_id
+        varchar action "MODERATE_COMMENT, RESTRICT_MEMBER, etc."
+        text reason
+        bigint report_id FK "fk_mod_history_report"
+        datetime created_at
+    }
+```
+
+- **Report Reasons (`ReportType`)**: `SPAM`, `HARASSMENT`, `INAPPROPRIATE_CONTENT`, `MISINFORMATION`, `ABUSE`, `OTHER`.
+- **Report Lifecycle (`ReportStatus`)**: `PENDING` &rarr; `UNDER_REVIEW` &rarr; `RESOLVED` / `REJECTED` / `DISMISSED`.
+- **Member Moderation Status**: `ACTIVE`, `RESTRICTED`, `BANNED`.
+
+---
+
+### 2. Permissions & Access Policy
+
+| Action | Ordinary User | Content Author | Community Moderator | Community Owner | Global Admin (`ROLE_ADMIN`) |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Submit Report** | Yes | Yes | Yes | Yes | Yes |
+| **View My Reports** | **Yes (own only)** | **Yes (own only)** | Yes | Yes | Yes |
+| **View Community Reports** | No | No | **Yes (in community)** | **Yes (in community)** | **Yes (globally)** |
+| **Update Report Status** | No | No | **Yes** | **Yes** | **Yes** |
+| **Resolve Report** | No | No | **Yes** | **Yes** | **Yes** |
+| **Moderate Comment / Feedback** | No | No | **Yes** | **Yes** | **Yes** |
+| **Restrict / Restore Member** | No | No | **Yes (not owner)** | **Yes (not self)** | **Yes** |
+
+---
+
+### 3. API Reference Catalog
+
+Base Path: `/api/v1`
+
+| HTTP Method | Path | Auth Required | Description |
+|---|---|:---:|---|
+| `POST` | `/api/v1/reports` | Yes | Submit moderation report against decision, comment, or feedback |
+| `GET` | `/api/v1/reports/my` | Yes | Retrieve reports filed by the authenticated user |
+| `GET` | `/api/v1/communities/{communityId}/reports` | Yes | Retrieve reports for community (moderators/owners/admins) |
+| `GET` | `/api/v1/reports/{reportId}` | Yes | Retrieve single report details (reporter or authorized moderator) |
+| `PUT` | `/api/v1/reports/{reportId}/status` | Yes | Update report review status (UNDER_REVIEW, REJECTED, etc.) |
+| `POST` | `/api/v1/reports/{reportId}/resolve` | Yes | Resolve report with outcome action (REMOVE_CONTENT, DISMISS, etc.) |
+| `PUT` | `/api/v1/comments/{commentId}/moderation` | Yes | Directly moderate/hide inappropriate comment |
+| `PUT` | `/api/v1/feedback/{feedbackId}/moderation` | Yes | Directly moderate/hide inappropriate feedback |
+| `POST` | `/api/v1/communities/{communityId}/members/{userId}/restrict` | Yes | Restrict community member from participating |
+| `POST` | `/api/v1/communities/{communityId}/members/{userId}/restore` | Yes | Restore restricted member to active status |
+
+---
+
+### 4. Sample Payloads
+
+#### Submit Report Request
+```json
+{
+  "contentType": "COMMENT",
+  "contentId": 14,
+  "reason": "INAPPROPRIATE_CONTENT",
+  "description": "Comment contains inflammatory and offensive remarks."
+}
+```
+
+#### Report Response DTO
+```json
+{
+  "success": true,
+  "message": "Report submitted successfully",
+  "data": {
+    "id": 1,
+    "reporterId": 541,
+    "reporterName": "Alice Johnson",
+    "decisionId": 233,
+    "communityId": 5,
+    "contentType": "COMMENT",
+    "contentId": 14,
+    "reason": "INAPPROPRIATE_CONTENT",
+    "description": "Comment contains inflammatory and offensive remarks.",
+    "status": "PENDING",
+    "reviewedById": null,
+    "reviewedByName": null,
+    "reviewedAt": null,
+    "resolutionNotes": null,
+    "actionTaken": null,
+    "createdAt": "2026-11-24T18:50:00"
+  },
+  "timestamp": "2026-11-24T18:50:00"
+}
+```
+
+#### Resolve Report Request
+```json
+{
+  "action": "REMOVE_CONTENT",
+  "resolutionNotes": "Comment violates code of conduct; removed from discussion thread."
+}
+```
 
 
+
+
+
+
+---
+
+## 11. Milestone 3, Phase 5: Analytics APIs
+
+### 1. Overview
+The Analytics Engine provides high-performance, real-time read-only analytical aggregations across the DecisionHub platform. It supports system overviews, decision categorization distributions, voting participation rates, community member activity, engagement levels (discussions & feedback), chronological trends, and granular decision-level voting breakdowns.
+
+### 2. Architecture & Design Highlights
+- **Role-Based Privacy**: Global registered user counts (`totalUsers`) are only exposed to platform administrators (`ROLE_ADMIN`); regular users receive `null` to prevent platform-wide intelligence exposure.
+- **Access Control on Private Data**: Decision detail analytics and voting metrics for private decisions or community-scoped decisions enforce strict access verification (creator, admin, or active community member).
+- **Zero-Division & Precision Safety**: All percentage and ratio calculations guard against zero denominators and round safely to 2 decimal places using `BigDecimal` rounding (`HALF_UP`).
+- **Efficient Aggregations**: Uses native JPA JPQL aggregate queries (`COUNT`, `GROUP BY`, `SUM`, `AVG`) rather than in-memory dataset iteration to maximize performance.
+- **Time-Series Metric Aggregation**: Trends are grouped by calendar date using database functions and sorted chronologically via `TreeMap`.
+
+---
+
+### 3. Endpoints Summary
+
+| HTTP Method | Endpoint | Auth Required | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/v1/analytics/overview` | Yes | High-level system/user metrics (total decisions, active, closed, communities, ballots, comments, feedback). `totalUsers` returned for Admin only. |
+| `GET` | `/api/v1/analytics/decisions` | Yes | Decision distribution across statuses, categories, and visibility levels. |
+| `GET` | `/api/v1/analytics/voting` | Yes | Platform-wide voting metrics (or filtered by `decisionId`), including poll type distribution and option vote shares. |
+| `GET` | `/api/v1/analytics/communities` | Yes | Community statistics, member status/role breakdowns, and top active communities. |
+| `GET` | `/api/v1/analytics/engagement` | Yes | Platform discussion metrics (top-level comments vs replies), feedback counts, and top 5 most discussed decisions. |
+| `GET` | `/api/v1/analytics/trends?period=daily` | Yes | Daily time-series activity points for decisions, ballots, comments, and feedback. |
+| `GET` | `/api/v1/analytics/decisions/{decisionId}` | Yes | In-depth analytics for a single decision: total votes, unique voters, option breakdown with percentages and average ratings. |
+
+---
+
+### 4. Sample Payloads
+
+#### Analytics Overview Response DTO
+```json
+{
+  "success": true,
+  "message": "Analytics overview retrieved successfully",
+  "data": {
+    "totalDecisions": 25,
+    "activeDecisions": 18,
+    "closedDecisions": 7,
+    "totalCommunities": 6,
+    "totalUsers": 42,
+    "totalBallots": 150,
+    "totalComments": 85,
+    "totalFeedback": 34
+  },
+  "timestamp": "2026-11-24T19:15:00"
+}
+```
+
+#### Decision Detail Analytics Response DTO
+```json
+{
+  "success": true,
+  "message": "Decision detail analytics retrieved successfully",
+  "data": {
+    "decisionId": 233,
+    "title": "Adopt Architecture Strategy for Cloud Migration",
+    "status": "ACTIVE",
+    "pollType": "SINGLE_CHOICE",
+    "totalBallots": 40,
+    "totalSelections": 40,
+    "options": [
+      {
+        "optionId": 501,
+        "optionTitle": "Kubernetes Microservices",
+        "voteCount": 26,
+        "votePercentage": 65.0,
+        "averageRating": null
+      },
+      {
+        "optionId": 502,
+        "optionTitle": "Serverless Functions",
+        "voteCount": 14,
+        "votePercentage": 35.0,
+        "averageRating": null
+      }
+    ]
+  },
+  "timestamp": "2026-11-24T19:15:00"
+}
+```

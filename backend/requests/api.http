@@ -477,6 +477,154 @@ Authorization: Bearer {{bobToken}}
 GET {{baseUrl}}/api/v1/notifications?page=0&size=10 HTTP/1.1
 Authorization: Bearer {{bobToken}}
 
+###############################################################################
+# SECTION 8: MILESTONE 3, PHASE 4 - MODERATION SYSTEM
+###############################################################################
+
+### 8.1 Submit Report on Inappropriate Comment (Alice reports Bob's comment)
+# @name submitCommentReport
+POST {{baseUrl}}/api/v1/reports HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "contentType": "COMMENT",
+  "contentId": {{bobCommentId}},
+  "reason": "INAPPROPRIATE_CONTENT",
+  "description": "Comment contains inflammatory and off-topic language."
+}
+
+### Store Report ID
+@reportId = {{submitCommentReport.response.body.data.id}}
+
+### 8.2 Retrieve My Reports (Alice views reports she submitted)
+GET {{baseUrl}}/api/v1/reports/my?page=0&size=10&sortBy=createdAt&sortDir=desc HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 8.3 Retrieve Individual Report (Alice views her report details)
+GET {{baseUrl}}/api/v1/reports/{{reportId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 8.4 Retrieve Community Reports as Owner / Moderator (Alice views reports for her community)
+GET {{baseUrl}}/api/v1/communities/{{testCommunityId}}/reports?page=0&size=10 HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 8.5 Attempt to Retrieve Community Reports as Ordinary Member (Bob - Expected: 403 Forbidden)
+GET {{baseUrl}}/api/v1/communities/{{testCommunityId}}/reports HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+### 8.6 Change Report Status to UNDER_REVIEW (Alice as Moderator)
+PUT {{baseUrl}}/api/v1/reports/{{reportId}}/status HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "status": "UNDER_REVIEW",
+  "notes": "Moderator team investigating comment context and community standards violation."
+}
+
+### 8.7 Attempt Unauthorized Report Status Modification (Bob tries to change status - Expected: 403 Forbidden)
+PUT {{baseUrl}}/api/v1/reports/{{reportId}}/status HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "status": "DISMISSED",
+  "notes": "Bob attempting to dismiss report against himself."
+}
+
+### 8.8 Resolve Report with Content Removal Action (Alice removes offending comment)
+POST {{baseUrl}}/api/v1/reports/{{reportId}}/resolve HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "action": "REMOVE_CONTENT",
+  "resolutionNotes": "Comment violates code of conduct; removed from discussion thread."
+}
+
+### 8.9 Direct Content Moderation: Moderator hides inappropriate comment
+PUT {{baseUrl}}/api/v1/comments/{{commentId}}/moderation HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "action": "DELETE",
+  "reason": "Direct moderation removal of flagged content."
+}
+
+### 8.10 Restrict Community Member (Alice restricts Bob in community)
+POST {{baseUrl}}/api/v1/communities/{{testCommunityId}}/members/{{submitRecommendation.response.body.data.author.id}}/restrict HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "reason": "Repeated violations of discussion conduct guidelines."
+}
+
+### 8.11 Attempt to Restrict Community Owner (Bob tries to restrict Alice - Expected: 403 Forbidden)
+POST {{baseUrl}}/api/v1/communities/{{testCommunityId}}/members/{{createPublicDecision.response.body.data.creatorId}}/restrict HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "reason": "Unauthorized attempt to restrict owner."
+}
+
+### 8.12 Restore Restricted Member (Alice restores Bob to active status)
+POST {{baseUrl}}/api/v1/communities/{{testCommunityId}}/members/{{submitRecommendation.response.body.data.author.id}}/restore HTTP/1.1
+Authorization: Bearer {{authToken}}
 
 
+
+
+
+
+
+###############################################################################
+# SECTION 9: MILESTONE 3, PHASE 5 - ANALYTICS APIS
+###############################################################################
+
+### 9.1 Analytics Overview (Ordinary User / Non-Admin - totalUsers is null)
+GET {{baseUrl}}/api/v1/analytics/overview HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+### 9.2 Analytics Overview (Admin / Authenticated User)
+GET {{baseUrl}}/api/v1/analytics/overview HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.3 Decision Analytics (Breakdown by Status, Category, Visibility)
+GET {{baseUrl}}/api/v1/analytics/decisions HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.4 Platform Voting Analytics (Total Ballots, Selections, Poll Types)
+GET {{baseUrl}}/api/v1/analytics/voting HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.5 Scoped Voting Analytics by Decision
+GET {{baseUrl}}/api/v1/analytics/voting?decisionId={{publicDecisionId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.6 Community Analytics (Total Communities, Top Communities, Role & Status Breakdown)
+GET {{baseUrl}}/api/v1/analytics/communities HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.7 Scoped Community Analytics
+GET {{baseUrl}}/api/v1/analytics/communities?communityId={{testCommunityId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.8 Engagement Analytics (Comments, Feedback, Most Discussed Decisions)
+GET {{baseUrl}}/api/v1/analytics/engagement HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.9 Trend Analytics (Daily Time-Series Metrics)
+GET {{baseUrl}}/api/v1/analytics/trends?period=daily HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.10 Detailed Decision Analytics (Votes per Option, Average Ratings, Percentages)
+GET {{baseUrl}}/api/v1/analytics/decisions/{{publicDecisionId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 9.11 Unauthorized Analytics Access Attempt (Expected: 401 Unauthorized)
+GET {{baseUrl}}/api/v1/analytics/overview HTTP/1.1
 

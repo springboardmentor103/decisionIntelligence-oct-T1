@@ -6,7 +6,7 @@ package com.decisionhub.backend.entity;
 public enum CommunityMembershipStatus {
     ACTIVE,
     PENDING,
+    RESTRICTED,
     BANNED,
     LEFT
 }
-

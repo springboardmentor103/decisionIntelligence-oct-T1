@@ -5,8 +5,10 @@ package com.decisionhub.backend.entity;
  */
 public enum ReportType {
     SPAM,
+    HARASSMENT,
+    INAPPROPRIATE_CONTENT,
     INAPPROPRIATE,
     MISINFORMATION,
+    ABUSE,
     OTHER
 }
-

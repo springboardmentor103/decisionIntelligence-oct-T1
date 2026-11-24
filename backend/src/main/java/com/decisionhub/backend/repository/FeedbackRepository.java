@@ -34,4 +34,15 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
 
     @Query("SELECT MAX(f.updatedAt) FROM Feedback f WHERE f.decision.id = :decisionId AND f.deleted = false")
     Optional<LocalDateTime> findLatestActivityByDecisionId(@Param("decisionId") Long decisionId);
+
+    long countByDeletedFalse();
+
+    @Query("SELECT f.feedbackType, COUNT(f) FROM Feedback f WHERE f.deleted = false GROUP BY f.feedbackType")
+    List<Object[]> countAllGroupByFeedbackType();
+
+    @Query("SELECT f.status, COUNT(f) FROM Feedback f WHERE f.deleted = false GROUP BY f.status")
+    List<Object[]> countAllGroupByStatus();
+
+    @Query("SELECT FUNCTION('DATE', f.createdAt), COUNT(f) FROM Feedback f WHERE f.deleted = false GROUP BY FUNCTION('DATE', f.createdAt) ORDER BY FUNCTION('DATE', f.createdAt) ASC")
+    List<Object[]> countFeedbackDaily();
 }

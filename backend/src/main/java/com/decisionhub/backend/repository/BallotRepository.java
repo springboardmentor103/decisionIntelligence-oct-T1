@@ -22,5 +22,11 @@ public interface BallotRepository extends JpaRepository<Ballot, Long> {
     boolean existsByUserIdAndDecisionId(Long userId, Long decisionId);
 
     long countByDecisionId(Long decisionId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(DISTINCT b.decision.id) FROM Ballot b")
+    Long countDistinctDecisionsWithBallots();
+
+    @org.springframework.data.jpa.repository.Query("SELECT FUNCTION('DATE', b.createdAt), COUNT(b) FROM Ballot b GROUP BY FUNCTION('DATE', b.createdAt) ORDER BY FUNCTION('DATE', b.createdAt) ASC")
+    List<Object[]> countBallotsDaily();
 }
 

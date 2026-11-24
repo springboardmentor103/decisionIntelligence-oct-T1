@@ -5,8 +5,9 @@ package com.decisionhub.backend.entity;
  */
 public enum ReportStatus {
     PENDING,
+    UNDER_REVIEW,
     REVIEWED,
-    DISMISSED,
-    RESOLVED
+    RESOLVED,
+    REJECTED,
+    DISMISSED
 }
-
