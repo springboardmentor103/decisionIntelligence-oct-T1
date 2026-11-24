@@ -7,6 +7,12 @@ import MyDecisions from './pages/MyDecisions'
 import CreateDecision from './pages/CreateDecision'
 import CompareOptions from './pages/CompareOptions'
 import Community from './pages/Community'
+import Communities from './pages/Communities'
+import CommunityDetails from './pages/CommunityDetails'
+import Vote from './pages/Vote'
+import Polls from './pages/Polls'
+import CreatePoll from './pages/CreatePoll'
+import PollResults from './pages/PollResults'
 import Notifications from './pages/Notifications'
 import About from './pages/About'
 import Settings from './pages/Settings'
@@ -21,17 +27,24 @@ import Register from './pages/auth/Register'
 import ResetPassword from './pages/auth/ResetPassword'
 import Unauthorized from './pages/Unauthorized'
 import './App.css'
+import Home from './pages/Home';
+import About1 from "./pages/About1";
+import Features from "./pages/Features.jsx";
+
 
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/about" element={<About1 />} />
+      <Route path="/features" element={<Features />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/oauth/callback" element={<OAuthCallback />} />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* <Route path="/" element={<Navigate to="/dashboard" replace />} /> */}
 
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
@@ -41,8 +54,16 @@ function App() {
           <Route path="/create-decision" element={<CreateDecision />} />
           <Route path="/compare-options" element={<CompareOptions />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/communities" element={<Communities />} />
+          <Route path="/communities/:communityId" element={<CommunityDetails />} />
+          <Route path="/vote/:decisionId" element={<Vote />} />
+          <Route path="/polls" element={<Polls />} />
+          <Route path="/polls/create" element={<CreatePoll />} />
+          <Route path="/polls/:pollId/results" element={<PollResults />} />
           <Route path="/notifications" element={<Notifications />} />
-          <Route path="/about" element={<About />} />
+          <Route path="dashboard-about" element={<About />} />
+          
+  
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/decision/:decisionId" element={<DecisionDetails />} />

@@ -13,4 +13,5 @@ public interface ComparisonCriteriaRepository
     boolean existsByDecisionIdAndNameIgnoreCase(
             Long decisionId, String name
     );
+    void deleteByDecisionId(Long decisionId);
 }

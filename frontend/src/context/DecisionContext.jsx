@@ -1,7 +1,21 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-
-const initialDecisions = [
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import {
+  getDecisionOptions,
+  getPollDetails,
+  submitVote,
+  getMyDecisions,
+  getPublicDecisions,
+  getCommunityPolls,
+  deleteDecision,
+} from '../services/decisionService'
+import {
+  getAllCommunities,
+  getMyCommunities,
+  joinCommunityApi,
+} from '../services/communityService'
+import { useAuth } from './AuthContext'
+const sampleDecisions = [
   {
     id: 'decision-1',
     title: 'Final-Year Project Tech Stack',
@@ -139,6 +153,21 @@ const initialDecisions = [
   },
 ]
 
+const loadStoredArray = (key) => {
+  const stored = localStorage.getItem(key)
+  if (!stored) return []
+
+  const value = JSON.parse(stored)
+  if (!Array.isArray(value)) {
+    throw new Error(`Saved ${key} data must be an array.`)
+  }
+  return value
+}
+
+const initialDecisions = loadStoredArray('decisionhub-created-decisions').map(
+  (decision) => ({ ...decision, isSample: false })
+)
+
 const initialPosts = [
   {
     id: 'post-1',
@@ -177,11 +206,67 @@ const initialPosts = [
   },
 ]
 
+const initialPolls = [
+  {
+    id: 'poll-campus-event',
+    title: 'Which workshop should we host next?',
+    description: 'Help the campus tech community choose its next hands-on session.',
+    options: ['AI for Everyone', 'Build with React', 'Career Portfolio Clinic'],
+    votes: { 'AI for Everyone': 18, 'Build with React': 27, 'Career Portfolio Clinic': 12 },
+    closesAt: '2026-12-15',
+    creator: 'Meera Iyer',
+  },
+]
+
+const initialCommunities = [
+  {
+    id: 'technology',
+    name: 'Technology & Product',
+    category: 'Technology',
+    description: 'Compare tools, plan projects and make better product decisions together.',
+    members: 1240,
+    decisions: 38,
+    privacy: 'Public',
+  },
+  {
+    id: 'campus-life',
+    name: 'Campus Life',
+    category: 'Campus',
+    description: 'Make campus events, clubs and student life work better for everyone.',
+    members: 864,
+    decisions: 26,
+    privacy: 'Public',
+  },
+  {
+    id: 'career-growth',
+    name: 'Career Growth',
+    category: 'Career',
+    description: 'Discuss internships, career paths and the choices that shape your future.',
+    members: 978,
+    decisions: 31,
+    privacy: 'Public',
+  },
+  {
+    id: 'travel-planning',
+    name: 'Travel Planning',
+    category: 'Travel',
+    description: 'Plan group trips with clear options, budgets and shared priorities.',
+    members: 542,
+    decisions: 19,
+    privacy: 'Public',
+  },
+]
+
 const DecisionContext = createContext(null)
 
 export function DecisionProvider({ children }) {
-  const [decisions, setDecisions] = useState(initialDecisions)
+  const { user } = useAuth()
+const userId = user?.userId
+  const [decisions, setDecisions] = useState([])
   const [posts, setPosts] = useState(initialPosts)
+  const [polls, setPolls] = useState(initialPolls)
+  const [communities, setCommunities] = useState([])
+const [joinedCommunities, setJoinedCommunities] = useState([])
   const [notifications, setNotifications] = useState([
     { id: 'notification-1', text: 'Reminder: cast your vote on “Where Should We Hold the Annual Tech Fest?”', time: '10 min ago', type: 'vote', unread: true },
     { id: 'notification-2', text: 'Priya Nair replied to your comment in “Final-Year Project Tech Stack”', time: '2h ago', type: 'reply', unread: true },
@@ -190,20 +275,350 @@ export function DecisionProvider({ children }) {
     { id: 'notification-5', text: 'Results published for “Monthly Budget Tracking Tool”', time: '3 days ago', type: 'results', unread: false },
   ])
   const [votes, setVotes] = useState({})
+const [activityEvents, setActivityEvents] = useState([])
+const [loadedUserId, setLoadedUserId] = useState(null)
+useEffect(() => {
+  let cancelled = false
 
-  const saveDecision = useCallback((decision, shouldPublish = true) => {
+  const getList = (response) => {
+    if (Array.isArray(response)) return response
+    if (Array.isArray(response?.data)) return response.data
+    return []
+  }
+
+  const loadCommunities = async () => {
+    try {
+      const response = await getAllCommunities()
+      const data = getList(response)
+
+      if (!cancelled) {
+        setCommunities(
+          data.map((community) => ({
+            ...community,
+            id: String(community.id),
+            members: community.memberCount ?? 0,
+            decisions: community.decisionCount ?? 0,
+          }))
+        )
+      }
+    } catch (error) {
+      console.error('Unable to load communities:', error)
+    }
+
+    if (!userId) {
+      if (!cancelled) setJoinedCommunities([])
+      return
+    }
+
+    try {
+      const response = await getMyCommunities()
+      const data = getList(response)
+
+      if (!cancelled) {
+        setJoinedCommunities(data.map((community) => String(community.id)))
+      }
+    } catch (error) {
+      console.error('Unable to load joined communities:', error)
+    }
+  }
+
+  loadCommunities()
+
+  return () => {
+    cancelled = true
+  }
+}, [userId])
+useEffect(() => {
+  if (!userId) {
+    setDecisions([])
+    setVotes({})
+    setActivityEvents([])
+    setLoadedUserId(null)
+    return
+  }
+
+  const savedDecisions = loadStoredArray(
+    `decisionhub-created-decisions-${userId}`
+  )
+
+  const savedVotes = localStorage.getItem(
+    `decisionhub-votes-${userId}`
+  )
+
+  const savedActivity = loadStoredArray(
+    `decisionhub-activity-${userId}`
+  )
+
+  setDecisions(
+    savedDecisions.map((decision) => ({
+      ...decision,
+      isSample: false,
+    }))
+  )
+
+  setVotes(savedVotes ? JSON.parse(savedVotes) : {})
+  setActivityEvents(savedActivity)
+  setLoadedUserId(userId)
+}, [userId])
+
+useEffect(() => {
+  let cancelled = false
+  if (!userId) {
+  setDecisions([])
+  return () => {
+    cancelled = true
+  }
+}
+
+  const loadBackendDecisions = async () => {
+    const results = await Promise.allSettled([
+      getMyDecisions(),
+      getPublicDecisions(),
+    ])
+
+    const mySucceeded = results[0].status === 'fulfilled'
+    const publicSucceeded = results[1].status === 'fulfilled'
+
+    // Keep existing local data if both API requests fail.
+    if (!mySucceeded && !publicSucceeded) {
+      console.error('Unable to load decisions from backend.')
+      return
+    }
+
+    const myDecisions = mySucceeded ? results[0].value || [] : []
+    const publicDecisions = publicSucceeded ? results[1].value || [] : []
+
+    // Avoid showing the same decision twice.
+    const decisionMap = new Map()
+
+    publicDecisions.forEach((decision) => {
+      decisionMap.set(String(decision.id), {
+        decision,
+        isMine: false,
+      })
+    })
+
+    myDecisions.forEach((decision) => {
+      decisionMap.set(String(decision.id), {
+        decision,
+        isMine: true,
+      })
+    })
+
+    const backendDecisions = await Promise.all(
+      Array.from(decisionMap.values()).map(async ({ decision, isMine }) => {
+        let options = []
+
+        try {
+          options = await getDecisionOptions(decision.id)
+        } catch (error) {
+          console.error(
+            `Unable to load options for decision ${decision.id}:`,
+            error
+          )
+        }
+
+        return {
+          ...decision,
+          createdAt: decision.createdAt?.slice(0, 10) || '',
+          deadline: decision.deadline?.slice(0, 10) || '',
+          visibility:
+            decision.visibility === 'PUBLIC' ? 'Community' : 'Private',
+          status:
+  new Date(decision.deadline) < new Date()
+    ? 'Completed'
+    : decision.status === 'COMPLETED'
+      ? 'Completed'
+      : decision.status === 'ACTIVE'
+        ? 'Active'
+        : 'Draft',
+          creator: decision.creatorName || (isMine ? 'You' : ''),
+          isMine,
+          isSample: false,
+          participants: 0,
+          votes: 0,
+          options: options.map((option) => ({
+            id: option.id,
+            decisionId: option.decisionId,
+            title: option.title,
+            description: option.description || '',
+            displayOrder: option.displayOrder,
+            scores: {},
+          })),
+        }
+      })
+    )
+
+    if (cancelled) return
+
     setDecisions((current) => {
-      const existing = current.some((item) => item.id === decision.id)
-      const saved = { ...decision, status: shouldPublish ? 'Active' : 'Draft' }
+      // Preserve locally stored information not included in backend DTOs.
+      const existingMap = new Map(
+        current.map((decision) => [String(decision.id), decision])
+      )
+
+      const loaded = backendDecisions.map((decision) => {
+        const existing = existingMap.get(String(decision.id))
+
+        return {
+          ...existing,
+          ...decision,
+          criteria: existing?.criteria || [],
+        }
+      })
+
+      // If one endpoint failed, retain existing records from local storage.
+      if (!mySucceeded || !publicSucceeded) {
+        const loadedIds = new Set(loaded.map((item) => String(item.id)))
+        const remaining = current.filter(
+          (item) => !loadedIds.has(String(item.id))
+        )
+
+        return [...loaded, ...remaining]
+      }
+
+      return loaded
+    })
+  }
+
+  loadBackendDecisions()
+
+  return () => {
+    cancelled = true
+  }
+},[userId])
+
+useEffect(() => {
+  let cancelled = false
+
+  if (!userId) {
+    setPolls([])
+    return
+  }
+
+  const loadCommunityPolls = async () => {
+    try {
+      const communityPolls = await getCommunityPolls()
+
+      const loadedPolls = await Promise.all(
+        (communityPolls || []).map(async (decision) => {
+          console.log('Individual backend decision:', decision)
+let details = null
+          try {
+            const response = await getPollDetails(decision.id)
+            details = response?.data ?? response
+          } catch (error) {
+            console.error(
+              `Unable to load poll ${decision.id}:`,
+              error
+            )
+          }
+
+          const pollOptions = details?.options || []
+
+          const options = pollOptions.map((option) => option.title)
+
+          const pollVotes = Object.fromEntries(
+            pollOptions.map((option) => [
+              option.title,
+              option.voteCount || 0,
+            ])
+          )
+
+          return {
+            id: String(decision.id),
+            title: decision.title,
+            description: decision.description || '',
+            creatorId: decision.creatorId,
+            options,
+            votes: pollVotes,
+            closesAt: (
+              details?.deadline ||
+              decision.deadline ||
+              ''
+            ).slice(0, 10),
+            creator: decision.creatorName || 'Community Member',
+          }
+        })
+      )
+
+      if (!cancelled) {
+        setPolls(loadedPolls)
+        console.log('Final polls loaded into context:', loadedPolls)
+      }
+    } catch (error) {
+      console.error('Unable to load community polls:', error)
+    }
+  }
+
+  loadCommunityPolls()
+
+  return () => {
+    cancelled = true
+  }
+}, [userId])
+
+
+  useEffect(() => {
+  if (loadedUserId !== userId || !userId) return
+
+  localStorage.setItem(
+    `decisionhub-created-decisions-${userId}`,
+    JSON.stringify(decisions.filter((decision) => !decision.isSample))
+  )
+}, [decisions, userId, loadedUserId])
+
+useEffect(() => {
+  if (loadedUserId !== userId || !userId) return
+
+  localStorage.setItem(
+    `decisionhub-votes-${userId}`,
+    JSON.stringify(votes)
+  )
+}, [votes, userId, loadedUserId])
+
+useEffect(() => {
+  if (loadedUserId !== userId || !userId) return
+
+  localStorage.setItem(
+    `decisionhub-activity-${userId}`,
+    JSON.stringify(activityEvents)
+  )
+}, [activityEvents, userId, loadedUserId])
+const removeDecision = useCallback((decisionId) => {
+  setDecisions((current) =>
+    current.filter(
+      (decision) => String(decision.id) !== String(decisionId)
+    )
+  )
+}, [])
+  const saveDecision = useCallback((decision, shouldPublish = true) => {
+    const existing = decisions.some((item) => item.id === decision.id)
+    const saved = { ...decision, isSample: false, status: shouldPublish ? 'Active' : 'Draft' }
+    setDecisions((current) => {
       return existing
         ? current.map((item) => (item.id === saved.id ? saved : item))
         : [saved, ...current]
     })
+    if (!existing) {
+      setActivityEvents((events) => [...events, {
+        type: 'decision',
+        title: saved.title,
+        timestamp: new Date().toISOString(),
+      }])
+    }
     return decision.id
-  }, [])
+  }, [decisions])
 
   const castVote = useCallback((decisionId, optionTitle) => {
+    if (votes[decisionId]) return false
     setVotes((current) => ({ ...current, [decisionId]: optionTitle }))
+    const decision = decisions.find((item) => String(item.id) === decisionId)
+    setActivityEvents((events) => [...events, {
+      type: 'vote',
+      title: decision?.title || 'a decision',
+      timestamp: new Date().toISOString(),
+    }])
     setDecisions((current) =>
       current.map((decision) =>
         decision.id === decisionId
@@ -211,7 +626,60 @@ export function DecisionProvider({ children }) {
           : decision,
       ),
     )
+    return true
+  }, [decisions, votes])
+
+  const createPoll = useCallback((poll) => {
+    setPolls((current) => [poll, ...current])
   }, [])
+  const deletePoll = useCallback(async (pollId) => {
+  await deleteDecision(pollId)
+
+  setPolls((current) =>
+    current.filter((poll) => String(poll.id) !== String(pollId))
+  )
+
+  setDecisions((current) =>
+    current.filter((decision) => String(decision.id) !== String(pollId))
+  )
+}, [])
+
+  const castPollVote = useCallback((pollId, option) => {
+    if (votes[`poll:${pollId}`]) return false
+    setVotes((current) => ({ ...current, [`poll:${pollId}`]: option }))
+    const poll = polls.find((item) => item.id === pollId)
+    setActivityEvents((events) => [...events, {
+      type: 'vote',
+      title: poll?.title || 'a poll',
+      timestamp: new Date().toISOString(),
+    }])
+    setPolls((current) => current.map((poll) => poll.id === pollId
+      ? { ...poll, votes: { ...poll.votes, [option]: (poll.votes[option] || 0) + 1 } }
+      : poll))
+    return true
+  }, [polls, votes])
+
+  const joinCommunity = useCallback(async (communityId) => {
+  const id = String(communityId)
+
+  if (joinedCommunities.includes(id)) return true
+
+  try {
+    await joinCommunityApi(id)
+
+    setJoinedCommunities((current) =>
+      current.includes(id) ? current : [...current, id]
+    )
+
+    return true
+  } catch (error) {
+    console.error(
+      'Unable to join community:',
+      error.response?.data || error
+    )
+    return false
+  }
+}, [joinedCommunities])
 
   const toggleLike = useCallback((postId) => {
     setPosts((current) =>
@@ -241,16 +709,25 @@ export function DecisionProvider({ children }) {
     () => ({
       decisions,
       posts,
+      polls,
+      communities,
+      joinedCommunities,
       notifications,
       votes,
+      activityEvents,
       saveDecision,
+      removeDecision,
       castVote,
+      createPoll,
+      deletePoll,
+      castPollVote,
+      joinCommunity,
       toggleLike,
       addPost,
       addReply,
       markAllRead,
     }),
-    [decisions, posts, notifications, votes, saveDecision, castVote, toggleLike, addPost, addReply, markAllRead],
+    [decisions, posts, polls, communities, removeDecision, joinedCommunities, notifications, votes, activityEvents, saveDecision, castVote, createPoll, deletePoll, castPollVote, joinCommunity, toggleLike, addPost, addReply, markAllRead],
   )
 
   return <DecisionContext.Provider value={value}>{children}</DecisionContext.Provider>

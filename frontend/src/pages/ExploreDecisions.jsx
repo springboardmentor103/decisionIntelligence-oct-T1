@@ -1,16 +1,21 @@
 import { Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { DecisionCard, FilterPill } from '../components/DecisionCard'
 import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
 
+
 const categories = ['All', 'Technology', 'Campus', 'Career', 'Finance', 'Lifestyle', 'Travel']
 
 export default function ExploreDecisions() {
+  
   const { decisions } = useDecisions()
   const [searchParams] = useSearchParams()
   const [query, setQuery] = useState(searchParams.get('q') || '')
+  useEffect(() => {
+  setQuery(searchParams.get('q') || '')
+}, [searchParams])
   const [category, setCategory] = useState('All')
   const [sort, setSort] = useState('Latest')
 

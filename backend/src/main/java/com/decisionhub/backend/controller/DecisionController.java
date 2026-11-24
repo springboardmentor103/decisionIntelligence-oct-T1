@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.decisionhub.backend.dto.ComparisonCriteriaResponse;
 
 import java.util.List;
 
@@ -50,6 +51,14 @@ public class DecisionController {
                 "Public decisions retrieved successfully",
                 decisionService.getPublicDecisions()));
     }
+    // API: Get Community Polls
+@GetMapping("/community-polls")
+public ResponseEntity<ApiResponseDto<List<DecisionResponse>>> getCommunityPolls() {
+
+    return ResponseEntity.ok(ApiResponseDto.success(
+            "Community polls retrieved successfully",
+            decisionService.getCommunityPolls()));
+}
 
     // API 3: Get My Decisions
     @GetMapping("/my")
@@ -125,4 +134,15 @@ public class DecisionController {
                 decisionService.getDecisionOptions(
                         decisionId, authentication.getName())));
     }
+    // API 9: Get Evaluation Criteria
+@GetMapping("/{decisionId}/criteria")
+public ResponseEntity<ApiResponseDto<List<ComparisonCriteriaResponse>>> getDecisionCriteria(
+        @PathVariable Long decisionId,
+        Authentication authentication) {
+
+    return ResponseEntity.ok(ApiResponseDto.success(
+            "Evaluation criteria retrieved successfully",
+            decisionService.getDecisionCriteria(
+                    decisionId, authentication.getName())));
+}
 }

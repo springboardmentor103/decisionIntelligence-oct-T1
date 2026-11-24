@@ -39,7 +39,7 @@ export default function Login() {
     try {
       const response = await loginUser({ email: form.email, password: form.password })
       login(response.user, response.token)
-      navigate(location.state?.from || '/dashboard', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (submitError) {
       setError(submitError.message || 'Unable to log in at this time.')
     } finally {
@@ -48,7 +48,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-shell">
+    <div className="auth-shell auth-shell--expanded">
       <AuthShowcase />
       <main className="auth-main">
         <div className="auth-card">

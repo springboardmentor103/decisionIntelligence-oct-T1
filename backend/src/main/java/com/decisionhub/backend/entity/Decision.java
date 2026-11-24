@@ -65,6 +65,9 @@ public class Decision extends BaseEntity {
     @Column(name = "poll_type", nullable = false, length = 30)
     @Builder.Default
     private PollType pollType = PollType.SINGLE_CHOICE;
+    @Column(name = "is_community_poll", nullable = false)
+@Builder.Default
+private boolean communityPoll = false;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(

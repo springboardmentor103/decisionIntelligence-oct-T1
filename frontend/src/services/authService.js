@@ -1,3 +1,5 @@
+
+
 import api, { isDemoMode } from './api'
 import { normalizeRoles } from '../utils/roles'
 
@@ -32,18 +34,20 @@ const getApiErrorMessage = (error) => {
 const normalizeAuthResponse = (data) => {
   const token = data?.token || data?.accessToken
 
-  if (!token) {
-    throw new Error('The server did not return a valid authentication token.')
+  if (typeof token !== 'string' || !token) {
+    throw new Error('The server did not return an authentication token.')
   }
 
-  const roles = normalizeRoles(data.role)
+  const userData = data?.user || data
+  const roles = normalizeRoles(userData.roles || userData.role)
 
   return {
     token,
     user: {
-      id: data.userId,
-      name: data.fullName,
-      email: data.email,
+      ...userData,
+      id: userData.userId || userData.id,
+      name: userData.fullName || userData.name,
+      fullName: userData.fullName || userData.name,
       role: roles[0] || 'user',
       roles,
     },
@@ -70,31 +74,35 @@ export const loginUser = async ({ email, password }) => {
     }
   }
 
-  let response
   try {
-    response = await api.post('/v1/auth/login', { email, password })
+    const response = await api.post('/auth/login', {
+      email,
+      password,
+    })
+
+    return normalizeAuthResponse(response.data)
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
-
-  return normalizeAuthResponse(response.data)
 }
 
-export const registerUser = async ({ fullName, email, password }) => {
-  if (!fullName || !email || !password) {
+export const registerUser = async ({ name, fullName, email, password }) => {
+  const registrationName = fullName || name
+
+  if (!registrationName || !email || !password) {
     throw new Error('Please complete all registration fields.')
   }
 
   if (isDemoMode) {
     return {
       token: null,
-      user: buildDemoUser({ name: fullName, email }),
+      user: buildDemoUser({ name: registrationName, email }),
     }
   }
 
   try {
-    const response = await api.post('/v1/auth/register', {
-      fullName,
+    const response = await api.post('/auth/register', {
+      fullName: registrationName,
       email,
       password,
     })
@@ -104,6 +112,7 @@ export const registerUser = async ({ fullName, email, password }) => {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
 }
+
 export const requestPasswordReset = async ({ email }) => {
   if (!email) {
     throw new Error('Please enter your email address.')
@@ -111,7 +120,8 @@ export const requestPasswordReset = async ({ email }) => {
 
   if (isDemoMode) {
     return {
-      message: 'Demo mode: No email was sent. Configure the backend to send real reset instructions.',
+      message:
+        'Demo mode: No email was sent. Configure the backend to send real reset instructions.',
     }
   }
 
@@ -122,6 +132,7 @@ export const requestPasswordReset = async ({ email }) => {
     throw new Error(getApiErrorMessage(error), { cause: error })
   }
 }
+
 export const resetPassword = async ({ token, newPassword }) => {
   if (!token || !newPassword) {
     throw new Error('A reset token and new password are required.')
@@ -132,7 +143,11 @@ export const resetPassword = async ({ token, newPassword }) => {
   }
 
   try {
-    const response = await api.post('/auth/reset-password', { token, newPassword })
+    const response = await api.post('/auth/reset-password', {
+      token,
+      newPassword,
+    })
+
     return response.data
   } catch (error) {
     throw new Error(getApiErrorMessage(error), { cause: error })
@@ -140,7 +155,6 @@ export const resetPassword = async ({ token, newPassword }) => {
 }
 
 export const getCurrentUser = async () => {
-  await api.get('/auth/csrf')
   const response = await api.get('/auth/me')
   return response.data
 }
@@ -150,6 +164,5 @@ export const logoutUser = async () => {
     return
   }
 
-  await api.get('/auth/csrf')
   await api.post('/auth/logout')
 }

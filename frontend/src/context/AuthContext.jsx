@@ -1,67 +1,101 @@
+
+
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react'
+
 import { isDemoMode, setAuthToken } from '../services/api'
-import { getCurrentUser } from '../services/authService'
 import { normalizeRoles } from '../utils/roles'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [isLoading, setIsLoading] = useState(!isDemoMode)
+  const [isLoading, setIsLoading] = useState(true)
   const [authNotice, setAuthNotice] = useState('')
 
+  // Restore the login session when the application starts
   useEffect(() => {
-  if (isDemoMode) {
-    setIsLoading(false)
-    return
-  }
-
-  try {
-    const token = localStorage.getItem('decisionhub-token')
-    const savedUser = localStorage.getItem('decisionhub-user')
-
-    if (token && savedUser) {
-      setAuthToken(token)
-      setUser(JSON.parse(savedUser))
+    if (isDemoMode) {
+      setIsLoading(false)
+      return
     }
-  } catch (error) {
-    localStorage.removeItem('decisionhub-token')
-    localStorage.removeItem('decisionhub-user')
-    setAuthToken(null)
-  } finally {
-    setIsLoading(false)
-  }
-}, [])
+
+    try {
+      const savedToken = localStorage.getItem('decisionhub-token')
+      const savedUser = localStorage.getItem('decisionhub-user')
+
+      if (savedToken && savedUser) {
+        const parsedUser = JSON.parse(savedUser)
+        const roles = normalizeRoles(parsedUser.roles || parsedUser.role)
+
+        setAuthToken(savedToken)
+        setUser({
+          ...parsedUser,
+          role: roles[0] || 'user',
+          roles,
+        })
+      }
+    } catch (error) {
+      console.error('Unable to restore login session:', error)
+
+      localStorage.removeItem('decisionhub-token')
+      localStorage.removeItem('decisionhub-user')
+      setAuthToken(null)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  // Login and save user details and token
   const login = useCallback((userData, token) => {
-  const roles = normalizeRoles(userData.roles || userData.role)
+    const roles = normalizeRoles(userData.roles || userData.role)
 
-  const nextUser = {
-    ...userData,
-    role: roles[0] || 'user',
-    roles,
-  }
+    const nextUser = {
+      ...userData,
+      role: roles[0] || 'user',
+      roles,
+    }
 
-  setUser(nextUser)
-  setAuthToken(token)
+    setUser(nextUser)
+    setAuthToken(token)
+    setAuthNotice('')
 
-  if (token) {
-    localStorage.setItem('decisionhub-token', token)
-    localStorage.setItem('decisionhub-user', JSON.stringify(nextUser))
-  }
+    if (token) {
+      localStorage.setItem('decisionhub-token', token)
+      localStorage.setItem('decisionhub-user', JSON.stringify(nextUser))
+    } else {
+      localStorage.removeItem('decisionhub-token')
+      localStorage.removeItem('decisionhub-user')
+    }
+  }, [])
 
-  setAuthNotice('')
-}, [])
-
+  // Logout and clear saved session
   const logout = useCallback(() => {
     setUser(null)
     setAuthToken(null)
+    setAuthNotice('')
+
     localStorage.removeItem('decisionhub-token')
     localStorage.removeItem('decisionhub-user')
   }, [])
 
   const updateUser = useCallback((updates) => {
-    setUser((current) => (current ? { ...current, ...updates } : current))
+    setUser((current) => {
+      if (!current) return current
+
+      const updatedUser = { ...current, ...updates }
+      localStorage.setItem('decisionhub-user', JSON.stringify(updatedUser))
+
+      return updatedUser
+    })
   }, [])
 
   const value = useMemo(
@@ -77,7 +111,11 @@ export function AuthProvider({ children }) {
     [user, isLoading, authNotice, login, logout, updateUser],
   )
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
