@@ -2,12 +2,12 @@ import { Bell, ChevronDown, Menu, Search } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useDecisions } from '../context/DecisionContext'
+import { useFeatures } from '../context/FeatureContext'
 
 export default function Navbar({ onMenuClick }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { notifications } = useDecisions()
+  const { notifications } = useFeatures()
   const [query, setQuery] = useState('')
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const unreadCount = notifications.filter((notification) => notification.unread).length
@@ -55,7 +55,7 @@ export default function Navbar({ onMenuClick }) {
           onClick={() => navigate('/notifications')}
         >
           <Bell size={19} />
-          {unreadCount > 0 ? <span className="notification-dot" /> : null}
+          {unreadCount > 0 ? <span className="notification-count">{unreadCount}</span> : null}
         </button>
         <div className="profile-menu-wrap">
           <button

@@ -16,9 +16,6 @@ export default function CompareOptions() {
 const [resultsLoading, setResultsLoading] = useState(false)
 const [resultsError, setResultsError] = useState('')
 useEffect(() => {
-  setScores({})
-}, [selectedId])
-useEffect(() => {
   const loadResults = async () => {
     if (!decision || !Number.isInteger(Number(decision.id))) {
       setPollResults(null)
@@ -41,7 +38,7 @@ useEffect(() => {
   }
 
   loadResults()
-}, [decision?.id])
+}, [decision])
   
 
 
@@ -79,7 +76,10 @@ useEffect(() => {
       {decision ? (
         <>
           <label className="decision-select-label">Decision
-            <select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+            <select value={selectedId} onChange={(event) => {
+              setSelectedId(event.target.value)
+              setScores({})
+            }}>
               {decisions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
             </select>
           </label>

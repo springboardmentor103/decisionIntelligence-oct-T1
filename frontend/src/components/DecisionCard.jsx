@@ -5,7 +5,7 @@ export function StatusBadge({ status }) {
   return <span className={`status-badge status-${status.toLowerCase()}`}>{status}</span>
 }
 
-export function DecisionCard({ decision }) {const creatorName = decision.creatorName || decision.creator || 'Unknown User'
+export function DecisionCard({ decision }) {
 
   return (
     <article className="decision-card">

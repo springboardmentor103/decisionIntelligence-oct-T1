@@ -5,7 +5,6 @@ import PageHeading from '../components/PageHeading'
 import { useDecisions } from '../context/DecisionContext'
 import {
   getDecisionOptions,
-  getPollDetails,
   getVoteStatus,
   submitVote as submitVoteToBackend,
 } from '../services/decisionService'
@@ -15,14 +14,12 @@ export default function Vote() {
   console.log('Vote page ID:', decisionId)
   const navigate = useNavigate()
   const location = useLocation()
-const backState = location.state || {}
   const { decisions, votes } = useDecisions()
   const decision = decisions.find((item) => String(item.id) === decisionId)
   const [selected, setSelected] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState('')
   const [backendOptions, setBackendOptions] = useState([])
-const [pollDetails, setPollDetails] = useState(null)
 const [loading, setLoading] = useState(true)
 const [hasVoted, setHasVoted] = useState(false)
 useEffect(() => {
@@ -30,14 +27,12 @@ useEffect(() => {
     try {
       setLoading(true)
 
-      const [options, poll, voteStatus] = await Promise.all([
+      const [options, voteStatus] = await Promise.all([
   getDecisionOptions(decisionId),
-  getPollDetails(decisionId),
   getVoteStatus(decisionId),
 ])
 
       setBackendOptions(options || [])
-      setPollDetails(poll)
       setHasVoted(voteStatus.hasVoted)
     } catch (error) {
       console.error('Failed to load poll data:', error)

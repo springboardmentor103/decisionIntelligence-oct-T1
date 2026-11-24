@@ -1,6 +1,6 @@
 
 
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 
 import {
   createContext,

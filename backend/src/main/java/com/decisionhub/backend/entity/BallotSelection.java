@@ -6,6 +6,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -51,19 +52,37 @@ public class BallotSelection extends BaseEntity {
     private Decision decision;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-        name = "ballot_id",
-        nullable = false,
-        foreignKey = @ForeignKey(name = "fk_ballot_selections_ballot")
-    )
+    @JoinColumns({
+        @JoinColumn(
+            name = "ballot_id",
+            referencedColumnName = "id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_ballot_selections_bal_dec")
+        ),
+        @JoinColumn(
+            name = "decision_id",
+            referencedColumnName = "decision_id",
+            insertable = false,
+            updatable = false
+        )
+    })
     private Ballot ballot;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-        name = "option_id",
-        nullable = false,
-        foreignKey = @ForeignKey(name = "fk_ballot_selections_option")
-    )
+    @JoinColumns({
+        @JoinColumn(
+            name = "option_id",
+            referencedColumnName = "id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_ballot_selections_opt_dec")
+        ),
+        @JoinColumn(
+            name = "decision_id",
+            referencedColumnName = "decision_id",
+            insertable = false,
+            updatable = false
+        )
+    })
     private Option option;
 
     @Column(name = "rating")

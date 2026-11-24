@@ -1,12 +1,16 @@
 import {
   Bell,
   CircleHelp,
+  ChartNoAxesColumn,
+  FileText,
   GitCompareArrows,
   LayoutDashboard,
   LogOut,
   PlusCircle,
   MessageCircle,
+  ShieldCheck,
   Settings,
+  Star,
   UsersRound,
   UserRound,
   Vote,
@@ -14,7 +18,8 @@ import {
 } from 'lucide-react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useDecisions } from '../context/DecisionContext'
+import { useFeatures } from '../context/FeatureContext'
+import { isDemoMode } from '../services/api'
 
 const links = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,7 +30,11 @@ const links = [
   { to: '/communities', label: 'Communities', icon: UsersRound },
   { to: '/polls', label: 'Polls', icon: Vote },
   { to: '/community', label: 'Discussions', icon: MessageCircle },
+  { to: '/feedback', label: 'Feedback', icon: Star },
   { to: '/notifications', label: 'Notifications', icon: Bell, hasBadge: true },
+  { to: '/moderation', label: 'Moderation', icon: ShieldCheck },
+  { to: '/analytics', label: 'Analytics', icon: ChartNoAxesColumn },
+  { to: '/reports', label: 'Reports', icon: FileText },
   { to: '/dashboard-about', label: 'About', icon: Waypoints },
   { to: '/profile', label: 'My Profile', icon: UserRound },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -33,9 +42,11 @@ const links = [
 
 export default function Sidebar({ open = false, onNavigate }) {
   const navigate = useNavigate()
-  const { logout } = useAuth()
-  const { notifications } = useDecisions()
+  const { logout, user } = useAuth()
+  const { notifications } = useFeatures()
   const unreadCount = notifications.filter((notification) => notification.unread).length
+  const canModerate = isDemoMode || user?.roles?.includes('moderator') || user?.roles?.includes('admin')
+  const visibleLinks = links.filter(({ to }) => to !== '/moderation' || canModerate)
 
   return (
     <>
@@ -47,7 +58,7 @@ export default function Sidebar({ open = false, onNavigate }) {
         </NavLink>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
-          {links.map(({ to, label, icon: Icon, hasBadge }) => (
+          {visibleLinks.map(({ to, label, icon: Icon, hasBadge }) => (
             <NavLink
               key={to}
               to={to}

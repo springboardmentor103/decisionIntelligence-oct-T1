@@ -7,6 +7,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinColumns;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
@@ -62,10 +63,19 @@ public class Comment extends BaseEntity {
     private String content;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "parent_comment_id",
-        foreignKey = @ForeignKey(name = "fk_comments_parent")
-    )
+    @JoinColumns({
+        @JoinColumn(
+            name = "parent_comment_id",
+            referencedColumnName = "id",
+            foreignKey = @ForeignKey(name = "fk_comments_parent_composite")
+        ),
+        @JoinColumn(
+            name = "decision_id",
+            referencedColumnName = "decision_id",
+            insertable = false,
+            updatable = false
+        )
+    })
     private Comment parentComment;
 
     @OneToMany(mappedBy = "parentComment", cascade = CascadeType.ALL, orphanRemoval = true)

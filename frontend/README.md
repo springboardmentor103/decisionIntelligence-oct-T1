@@ -78,5 +78,18 @@ npm run build
 ```
 
 The dashboard, profile, and role-specific navigation are foundation screens.
-Decision-management, voting, discussions, notifications, and analytics belong
-to later milestones.
+Decision-management and voting integration remain dependent on backend
+endpoints.
+
+## Frontend module demos
+
+The Discussions, Feedback, Notifications, Moderation, Analytics, and Reports
+screens are available in the dashboard navigation. In demo mode, these screens
+use sample data and save changes in the current browser's local storage; they
+do not call backend endpoints or share data with other users. Moderation is
+available to explore in demo mode. Outside demo mode, the moderation route
+requires a moderator or administrator role.
+
+Analytics charts use Chart.js. Report rows can be filtered by type and date
+range and exported as CSV. Run `npm run lint` and `npm run build` to validate
+the frontend.

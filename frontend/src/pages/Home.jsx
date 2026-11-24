@@ -3,14 +3,9 @@ import {
   Users,
   GitCompareArrows,
   Vote,
-  Target,
   Lightbulb,
   BarChart3,
   ArrowRight,
-  CheckCircle2,
-  MessageCircle,
-  Bell,
-  ShieldCheck,
 } from "lucide-react";
 
 import "./Home.css";

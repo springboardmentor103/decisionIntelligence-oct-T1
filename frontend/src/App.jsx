@@ -1,4 +1,5 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Route, Routes } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import DashboardLayout from './layouts/DashboardLayout'
 import Dashboard from './pages/Dashboard'
@@ -30,7 +31,13 @@ import './App.css'
 import Home from './pages/Home';
 import About1 from "./pages/About1";
 import Features from "./pages/Features.jsx";
+import Feedback from './pages/Feedback'
+import Moderation from './pages/Moderation'
+import Reports from './pages/Reports'
+import { isDemoMode } from './services/api'
+import './FeatureModules.css'
 
+const Analytics = lazy(() => import('./pages/Analytics'))
 
 function App() {
   return (
@@ -54,6 +61,7 @@ function App() {
           <Route path="/create-decision" element={<CreateDecision />} />
           <Route path="/compare-options" element={<CompareOptions />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/discussions" element={<Community />} />
           <Route path="/communities" element={<Communities />} />
           <Route path="/communities/:communityId" element={<CommunityDetails />} />
           <Route path="/vote/:decisionId" element={<Vote />} />
@@ -61,6 +69,9 @@ function App() {
           <Route path="/polls/create" element={<CreatePoll />} />
           <Route path="/polls/:pollId/results" element={<PollResults />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/feedback" element={<Feedback />} />
+          <Route path="/analytics" element={<Suspense fallback={<p className="page-block">Loading analytics…</p>}><Analytics /></Suspense>} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="dashboard-about" element={<About />} />
           
   
@@ -70,12 +81,11 @@ function App() {
           <Route
             path="/moderation"
             element={
-              <ProtectedRoute requiredRole="moderator">
-                <RoleWorkspace
-                  title="Moderation"
-                  description="Review community content and support healthy discussion."
-                />
-              </ProtectedRoute>
+              isDemoMode ? <Moderation /> : (
+                <ProtectedRoute requiredRole="moderator">
+                  <Moderation />
+                </ProtectedRoute>
+              )
             }
           />
           <Route

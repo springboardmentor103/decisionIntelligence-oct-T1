@@ -1,21 +1,31 @@
-import { Bell, CalendarClock, MessageCircle, Megaphone, UserRoundPlus, Vote } from 'lucide-react'
+import { Bell, CalendarClock, MessageCircle, Megaphone, Star, TriangleAlert, Vote } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import PageHeading from '../components/PageHeading'
-import { useDecisions } from '../context/DecisionContext'
+import { useFeatures } from '../context/FeatureContext'
 
-const typeIcons = { vote: Vote, reply: MessageCircle, invite: UserRoundPlus, deadline: CalendarClock, results: Megaphone }
+const typeIcons = {
+  vote: Vote,
+  reply: MessageCircle,
+  feedback: Star,
+  report: TriangleAlert,
+  deadline: CalendarClock,
+  results: Megaphone,
+}
 
 export default function Notifications() {
-  const { notifications, markAllRead } = useDecisions()
+  const { notifications, markNotificationRead, markAllNotificationsRead } = useFeatures()
   const [filter, setFilter] = useState('All')
   const shown = notifications.filter((notification) => filter === 'All' || notification.unread)
 
   return (
-    <div className="page-block">
+    <div className="page-block feature-page">
       <PageHeading
         title="Notifications"
-        actions={<button type="button" className="button button--outline" onClick={markAllRead}>Mark All as Read</button>}
+        description="Updates about discussions, feedback, polls, and reports."
+        actions={<button type="button" className="button button--outline" onClick={markAllNotificationsRead}>Mark all as read</button>}
       />
+      <p className="feature-demo-note">Demo workspace: notifications are stored in this browser.</p>
       <div className="sort-tabs notification-tabs">
         {['All', 'Unread'].map((item) => <button type="button" key={item} className={`filter-pill ${filter === item ? 'active' : ''}`} onClick={() => setFilter(item)}>{item}</button>)}
       </div>
@@ -23,11 +33,16 @@ export default function Notifications() {
         {shown.map((notification) => {
           const Icon = typeIcons[notification.type] || Bell
           return (
-            <article key={notification.id} className={`notification-item ${notification.unread ? 'unread' : ''}`}>
+            <Link
+              to={notification.href || '/notifications'}
+              key={notification.id}
+              className={`notification-item ${notification.unread ? 'unread' : ''}`}
+              onClick={() => markNotificationRead(notification.id)}
+            >
               <span className="notification-type-icon"><Icon size={16} /></span>
-              <div><p>{notification.text}</p><small>{notification.time}</small></div>
-              {notification.unread ? <span className="unread-dot" aria-label="Unread" /> : null}
-            </article>
+              <span className="notification-message"><span>{notification.text}</span><small>{notification.time}</small></span>
+              {notification.unread ? <span className="unread-dot" aria-label="Unread" /> : <span className="notification-read-label">Read</span>}
+            </Link>
           )
         })}
         {shown.length === 0 ? <div className="panel-card empty-state"><p>You’re all caught up.</p></div> : null}
