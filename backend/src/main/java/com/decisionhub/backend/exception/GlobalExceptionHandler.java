@@ -78,6 +78,15 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponseDto> handleHttpMessageNotReadableException(
+            org.springframework.http.converter.HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
+
+        String message = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+        return buildError(HttpStatus.BAD_REQUEST, "Malformed JSON request or invalid field format: " + message, request);
+    }
+
     private ResponseEntity<ErrorResponseDto> buildError(
             HttpStatus status, String message, HttpServletRequest request) {
 

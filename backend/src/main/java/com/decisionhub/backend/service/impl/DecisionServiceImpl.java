@@ -288,6 +288,8 @@ public DecisionResponse createDecision(
 
     synchronizeCriteria(savedDecision, request.criteria());
 
+    synchronizeOptions(savedDecision, request.options());
+
     return mapToResponse(savedDecision);
 }
     // API 2: Retrieve Public Decisions

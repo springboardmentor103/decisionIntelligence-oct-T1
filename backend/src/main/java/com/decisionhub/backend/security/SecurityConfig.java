@@ -54,7 +54,10 @@ public class SecurityConfig {
                     org.springframework.http.HttpMethod.GET,
                     "/api/v1/decisions/*/comments",
                     "/api/v1/comments/*/replies",
-                    "/api/v1/decisions/*/discussions/summary"
+                    "/api/v1/decisions/*/discussions/summary",
+                    "/api/v1/decisions/*/feedback",
+                    "/api/v1/decisions/*/feedback/summary",
+                    "/api/v1/feedback/*"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

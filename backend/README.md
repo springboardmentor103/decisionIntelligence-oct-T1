@@ -389,3 +389,159 @@ Base Path: `/api/v1`
 }
 ```
 
+---
+
+## 8. Milestone 3, Phase 2: Feedback Management
+
+DecisionHub provides structured feedback management attached to decision boards and specific options, offering actionable suggestions, advice, and recommendations with formal moderation and status lifecycles.
+
+### 1. Data Model & Relationships
+
+```mermaid
+erDiagram
+    DECISIONS ||--o{ FEEDBACKS : "receives"
+    USERS ||--o{ FEEDBACKS : "authors"
+    OPTIONS ||--o{ FEEDBACKS : "targets (optional)"
+    USERS ||--o{ FEEDBACKS : "reviews"
+
+    FEEDBACKS {
+        bigint id PK
+        bigint decision_id FK "fk_feedbacks_decision"
+        bigint author_id FK "fk_feedbacks_author"
+        bigint option_id FK "fk_feedbacks_option"
+        varchar feedback_type "SUGGESTION, ADVICE, RECOMMENDATION, GENERAL_FEEDBACK"
+        text content
+        varchar status "SUBMITTED, UNDER_REVIEW, ACCEPTED, REJECTED, RESOLVED"
+        boolean is_deleted
+        bigint reviewed_by_id FK "fk_feedbacks_reviewed_by"
+        datetime reviewed_at
+        varchar status_reason
+        datetime created_at
+        datetime updated_at
+    }
+```
+
+- **Feedback Types**:
+  - `SUGGESTION`: Constructive proposals for improving the decision or an option.
+  - `ADVICE`: Guidance or domain wisdom regarding decision execution.
+  - `RECOMMENDATION`: Explicit recommendation endorsing or cautioning an option.
+  - `GENERAL_FEEDBACK`: Broad feedback on the overall poll or discussion scope.
+- **Feedback Lifecycle Statuses**:
+  - `SUBMITTED`: Newly posted by a community member (default).
+  - `UNDER_REVIEW`: Decision owner or moderator is evaluating the feedback.
+  - `ACCEPTED`: Feedback or recommendation adopted into consideration.
+  - `REJECTED`: Feedback evaluated and dismissed (with optional rationale).
+  - `RESOLVED`: Action items resulting from feedback have been addressed.
+
+---
+
+### 2. Permissions & Access Policy
+
+| Action | Feedback Author | Decision Owner | Community Moderator | Global Admin (`ROLE_ADMIN`) | Other Member / Public |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Submit Feedback** | Yes | Yes | Yes | Yes | If decision is public or member |
+| **View Feedback** | Yes | Yes | Yes | Yes | If decision is public or member |
+| **Edit Feedback Content** | **Yes** | No | No | No | No |
+| **Delete Feedback** | **Yes** | **Yes** | **Yes** | **Yes** | No |
+| **Update Status (Review)** | No* | **Yes** | **Yes** | **Yes** | No |
+
+*\*Ordinary users cannot approve, reject, or change the status of their own or others' feedback unless they possess decision ownership, community moderation, or administrative authority.*
+
+---
+
+### 3. API Reference Catalog
+
+Base Path: `/api/v1`
+
+| HTTP Method | Path | Auth Required | Description |
+|---|---|:---:|---|
+| `POST` | `/api/v1/decisions/{decisionId}/feedback` | Yes | Submit structured feedback on a decision or option |
+| `GET` | `/api/v1/decisions/{decisionId}/feedback` | Optional* | Retrieve paginated feedback with optional type filtering |
+| `GET` | `/api/v1/feedback/{feedbackId}` | Optional* | Retrieve individual feedback details |
+| `PUT` | `/api/v1/feedback/{feedbackId}` | Yes | Edit own feedback content or associated option (author only) |
+| `DELETE` | `/api/v1/feedback/{feedbackId}` | Yes | Soft-delete feedback (author, decision owner, moderator, admin) |
+| `PUT` | `/api/v1/feedback/{feedbackId}/status` | Yes | Change feedback lifecycle status with optional reviewer reason |
+| `GET` | `/api/v1/decisions/{decisionId}/feedback/summary` | Optional* | Retrieve aggregated feedback metrics, status and type counts |
+
+*\*Public decisions allow public access; private decisions enforce authentication and access restrictions.*
+
+---
+
+### 4. Sample Payloads
+
+#### Submit Feedback Request
+```json
+{
+  "feedbackType": "SUGGESTION",
+  "content": "Consider setting up benchmark tests comparing throughput and latency under high partition loads.",
+  "optionId": 2
+}
+```
+
+#### Feedback Response DTO
+```json
+{
+  "success": true,
+  "message": "Feedback submitted successfully",
+  "data": {
+    "id": 1,
+    "decisionId": 10,
+    "author": {
+      "id": 1,
+      "fullName": "Alice Johnson",
+      "email": "alice@example.com"
+    },
+    "option": {
+      "id": 2,
+      "title": "Apache Kafka"
+    },
+    "feedbackType": "SUGGESTION",
+    "content": "Consider setting up benchmark tests comparing throughput and latency under high partition loads.",
+    "status": "SUBMITTED",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "statusReason": null,
+    "isDeleted": false,
+    "createdAt": "2026-11-24T17:50:00",
+    "updatedAt": "2026-11-24T17:50:00"
+  },
+  "timestamp": "2026-11-24T17:50:00"
+}
+```
+
+#### Update Feedback Status Request
+```json
+{
+  "status": "ACCEPTED",
+  "reason": "Approved: 3-node cluster architecture meets reliability criteria and budget."
+}
+```
+
+#### Feedback Summary Response DTO
+```json
+{
+  "success": true,
+  "message": "Feedback summary retrieved successfully",
+  "data": {
+    "decisionId": 10,
+    "totalFeedback": 8,
+    "countsByType": {
+      "SUGGESTION": 3,
+      "ADVICE": 2,
+      "RECOMMENDATION": 2,
+      "GENERAL_FEEDBACK": 1
+    },
+    "countsByStatus": {
+      "SUBMITTED": 3,
+      "UNDER_REVIEW": 2,
+      "ACCEPTED": 2,
+      "REJECTED": 1,
+      "RESOLVED": 0
+    },
+    "lastActivityAt": "2026-11-24T17:55:00"
+  },
+  "timestamp": "2026-11-24T17:55:00"
+}
+```
+
+

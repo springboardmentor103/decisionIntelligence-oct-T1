@@ -128,7 +128,16 @@ Authorization: Bearer {{authToken}}
 ### Store Decision ID
 @decisionId = {{createPublicDecision.response.body.data.id}}
 
-### 4.2 Create Private Decision (For Access Control Tests)
+### 4.2 Retrieve Options for Public Decision (Extracts Option IDs)
+# @name getDecisionOptions
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### Store Option IDs
+@option1Id = {{getDecisionOptions.response.body.data[0].id}}
+@option2Id = {{getDecisionOptions.response.body.data[1].id}}
+
+### 4.3 Create Private Decision (For Access Control Tests)
 # @name createPrivateDecision
 POST {{baseUrl}}/api/v1/decisions HTTP/1.1
 Content-Type: {{contentType}}
@@ -260,5 +269,123 @@ Authorization: Bearer {{authToken}}
 ### 5.13 Verify Soft Deletion Preserves Threaded Discussion
 GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/comments HTTP/1.1
 Authorization: Bearer {{authToken}}
+
+###############################################################################
+# SECTION 6: MILESTONE 3, PHASE 2 - FEEDBACK MANAGEMENT
+###############################################################################
+
+### 6.0 Retrieve Options for Decision (Run this first to populate option IDs for option-specific feedback)
+# @name prepOptions
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/options HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### Store Option IDs for Section 6
+@feedbackOption1Id = {{prepOptions.response.body.data[0].id}}
+@feedbackOption2Id = {{prepOptions.response.body.data[1].id}}
+
+### 6.1 Submit Feedback: SUGGESTION (General Feedback on Decision)
+# @name submitSuggestion
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/feedback HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "feedbackType": "SUGGESTION",
+  "content": "Consider setting up benchmark tests comparing throughput and latency under high partition loads."
+}
+
+### Store Feedback ID
+@feedbackId = {{submitSuggestion.response.body.data.id}}
+
+### 6.2 Submit Feedback: ADVICE Attached to Option 1
+# @name submitAdvice
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/feedback HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "feedbackType": "ADVICE",
+  "content": "Ensure our team completes AWS MSK security and VPC peering training before production deployment.",
+  "optionId": {{feedbackOption1Id}}
+}
+
+### 6.3 Submit Feedback: RECOMMENDATION Attached to Option 2 (Bob)
+# @name submitRecommendation
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/feedback HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "feedbackType": "RECOMMENDATION",
+  "content": "We recommend starting with a 3-node Kafka cluster to balance operational redundancy and infrastructure budget.",
+  "optionId": {{feedbackOption2Id}}
+}
+
+### Store Bob's Feedback ID
+@bobFeedbackId = {{submitRecommendation.response.body.data.id}}
+
+### 6.4 Retrieve Decision Feedback (Paginated)
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/feedback?page=0&size=10&sortBy=createdAt&sortDir=desc HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.5 Filter Feedback by Type (e.g., SUGGESTION)
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/feedback?feedbackType=SUGGESTION&page=0&size=10 HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.6 Retrieve Individual Feedback Details
+GET {{baseUrl}}/api/v1/feedback/{{feedbackId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.7 Update Own Feedback (Alice edits her suggestion)
+PUT {{baseUrl}}/api/v1/feedback/{{feedbackId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "feedbackType": "SUGGESTION",
+  "content": "Updated suggestion: Run comprehensive end-to-end benchmark tests on Kafka and RabbitMQ with 10k msg/sec payloads."
+}
+
+### 6.8 Attempt Unauthorized Feedback Modification (Bob attempts to edit Alice's feedback - Expected: 403 Forbidden)
+PUT {{baseUrl}}/api/v1/feedback/{{feedbackId}} HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "content": "Malicious attempt: Bob editing Alice's feedback without permission."
+}
+
+### 6.9 Attempt Unauthorized Feedback Status Change (Bob, an ordinary user, tries to accept Alice's feedback - Expected: 403 Forbidden)
+PUT {{baseUrl}}/api/v1/feedback/{{feedbackId}}/status HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "status": "ACCEPTED",
+  "reason": "Bob attempting to approve feedback without moderator rights."
+}
+
+### 6.10 Change Feedback Status as Authorized Decision Owner / Moderator (Alice accepts Bob's recommendation)
+PUT {{baseUrl}}/api/v1/feedback/{{bobFeedbackId}}/status HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "status": "ACCEPTED",
+  "reason": "Approved: 3-node cluster architecture meets reliability criteria and budget."
+}
+
+### 6.11 Retrieve Feedback Summary Metrics for Decision
+GET {{baseUrl}}/api/v1/decisions/{{decisionId}}/feedback/summary HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 6.12 Delete Own Feedback (Bob deletes his recommendation - Soft Deletion)
+DELETE {{baseUrl}}/api/v1/feedback/{{bobFeedbackId}} HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+### 6.13 Verify Soft Deletion of Feedback
+GET {{baseUrl}}/api/v1/feedback/{{bobFeedbackId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
 
 
