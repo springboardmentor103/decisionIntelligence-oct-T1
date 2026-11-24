@@ -11,6 +11,7 @@ import com.decisionhub.backend.entity.CommunityMembershipRole;
 import com.decisionhub.backend.entity.CommunityMembershipStatus;
 import com.decisionhub.backend.entity.Decision;
 import com.decisionhub.backend.entity.DecisionVisibility;
+import com.decisionhub.backend.entity.NotificationType;
 import com.decisionhub.backend.entity.User;
 import com.decisionhub.backend.entity.UserRole;
 import com.decisionhub.backend.exception.BadRequestException;
@@ -22,6 +23,7 @@ import com.decisionhub.backend.repository.CommunityMemberRepository;
 import com.decisionhub.backend.repository.DecisionRepository;
 import com.decisionhub.backend.repository.UserRepository;
 import com.decisionhub.backend.service.CommentService;
+import com.decisionhub.backend.service.NotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -44,16 +46,19 @@ public class CommentServiceImpl implements CommentService {
     private final DecisionRepository decisionRepository;
     private final UserRepository userRepository;
     private final CommunityMemberRepository communityMemberRepository;
+    private final NotificationService notificationService;
 
     public CommentServiceImpl(
             CommentRepository commentRepository,
             DecisionRepository decisionRepository,
             UserRepository userRepository,
-            CommunityMemberRepository communityMemberRepository) {
+            CommunityMemberRepository communityMemberRepository,
+            NotificationService notificationService) {
         this.commentRepository = commentRepository;
         this.decisionRepository = decisionRepository;
         this.userRepository = userRepository;
         this.communityMemberRepository = communityMemberRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -74,6 +79,17 @@ public class CommentServiceImpl implements CommentService {
                 .build();
 
         Comment saved = commentRepository.save(comment);
+
+        // Notify decision creator if someone else commented
+        if (!decision.getCreator().getId().equals(user.getId())) {
+            notificationService.createNotification(
+                    decision.getCreator(),
+                    NotificationType.COMMENT_RECEIVED,
+                    user.getFullName() + " commented on your decision: '" + decision.getTitle() + "'",
+                    decision.getId()
+            );
+        }
+
         return CommentResponseDto.fromEntity(saved, 0L);
     }
 
@@ -161,6 +177,17 @@ public class CommentServiceImpl implements CommentService {
                 .build();
 
         Comment saved = commentRepository.save(reply);
+
+        // Notify parent comment author if someone else replied
+        if (!parentComment.getUser().getId().equals(user.getId())) {
+            notificationService.createNotification(
+                    parentComment.getUser(),
+                    NotificationType.COMMENT_REPLY,
+                    user.getFullName() + " replied to your comment on: '" + decision.getTitle() + "'",
+                    decision.getId()
+            );
+        }
+
         return CommentResponseDto.fromEntity(saved, 0L);
     }
 

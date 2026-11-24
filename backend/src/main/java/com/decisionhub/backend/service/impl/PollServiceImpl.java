@@ -27,6 +27,7 @@ public class PollServiceImpl implements PollService {
     private final UserRepository userRepository;
     private final BallotRepository ballotRepository;
     private final BallotSelectionRepository selectionRepository;
+    private final com.decisionhub.backend.service.NotificationService notificationService;
 
     private User getUser(String email) {
         return userRepository.findByEmail(email)
@@ -301,6 +302,16 @@ public class PollServiceImpl implements PollService {
             );
 
             selectionRepository.save(ballotSelection);
+        }
+
+        // Notify decision creator if someone else voted
+        if (!decision.getCreator().getId().equals(user.getId())) {
+            notificationService.createNotification(
+                    decision.getCreator(),
+                    NotificationType.VOTE_RECEIVED,
+                    "A new vote was submitted on your poll: '" + decision.getTitle() + "'",
+                    decision.getId()
+            );
         }
 
         return new PollDtos.SubmitVoteResponse(

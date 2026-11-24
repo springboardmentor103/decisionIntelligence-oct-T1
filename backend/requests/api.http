@@ -388,4 +388,95 @@ GET {{baseUrl}}/api/v1/feedback/{{bobFeedbackId}} HTTP/1.1
 Authorization: Bearer {{authToken}}
 
 
+###############################################################################
+# SECTION 7: MILESTONE 3, PHASE 3 - NOTIFICATION SYSTEM
+###############################################################################
+
+### 7.1 Generate Notification: Bob comments on Alice's decision (Generates COMMENT_RECEIVED for Alice)
+# @name bobCommentsOnAliceDecision
+POST {{baseUrl}}/api/v1/decisions/{{decisionId}}/comments HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{bobToken}}
+
+{
+  "content": "Bob adding an insightful architectural perspective to Alice's decision."
+}
+
+### Store Bob's Comment ID
+@bobCommentId = {{bobCommentsOnAliceDecision.response.body.data.id}}
+
+### 7.2 Generate Notification: Alice replies to Bob's comment (Generates COMMENT_REPLY for Bob)
+POST {{baseUrl}}/api/v1/comments/{{bobCommentId}}/replies HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "content": "Alice responding directly to Bob's architectural observation."
+}
+
+### 7.3 Generate Notification: Bob joins Alice's community (Generates MEMBERSHIP_REQUESTED for Alice)
+# Create a community first
+# @name createCommunity
+POST {{baseUrl}}/api/v1/communities HTTP/1.1
+Content-Type: {{contentType}}
+Authorization: Bearer {{authToken}}
+
+{
+  "name": "Cloud Architecture Working Group",
+  "description": "Cross-functional group discussing event-driven patterns."
+}
+
+### Store Community ID
+@testCommunityId = {{createCommunity.response.body.id}}
+
+### Bob joins the community (triggers notification for Alice)
+POST {{baseUrl}}/api/v1/communities/{{testCommunityId}}/join HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+### 7.4 Retrieve All Notifications for Authenticated User (Alice - Newest First)
+# @name getAliceNotifications
+GET {{baseUrl}}/api/v1/notifications?page=0&size=10&sortBy=createdAt&sortDir=desc HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### Store Notification ID from Alice's list
+@aliceNotificationId = {{getAliceNotifications.response.body.data.content[0].id}}
+
+### 7.5 Retrieve Unread Notifications for Authenticated User (Alice)
+GET {{baseUrl}}/api/v1/notifications/unread?page=0&size=10 HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 7.6 Retrieve Unread Notification Count (Alice)
+GET {{baseUrl}}/api/v1/notifications/unread/count HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 7.7 Mark One Notification as Read (Alice marks her notification)
+PUT {{baseUrl}}/api/v1/notifications/{{aliceNotificationId}}/read HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 7.8 Attempt Unauthorized Notification Modification (Bob tries to mark Alice's notification as read - Expected: 403 Forbidden)
+PUT {{baseUrl}}/api/v1/notifications/{{aliceNotificationId}}/read HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+### 7.9 Mark All Notifications as Read for Authenticated User (Alice)
+PUT {{baseUrl}}/api/v1/notifications/read-all HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 7.10 Verify Unread Count is now 0 after read-all
+GET {{baseUrl}}/api/v1/notifications/unread/count HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 7.11 Delete Single Notification (Alice deletes her read notification)
+DELETE {{baseUrl}}/api/v1/notifications/{{aliceNotificationId}} HTTP/1.1
+Authorization: Bearer {{authToken}}
+
+### 7.12 Attempt Unauthorized Notification Deletion (Bob attempts to delete Alice's notification - Expected: 404 or 403)
+DELETE {{baseUrl}}/api/v1/notifications/{{aliceNotificationId}} HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+### 7.13 Verify Bob's Notifications (Check COMMENT_REPLY received by Bob)
+GET {{baseUrl}}/api/v1/notifications?page=0&size=10 HTTP/1.1
+Authorization: Bearer {{bobToken}}
+
+
+
 

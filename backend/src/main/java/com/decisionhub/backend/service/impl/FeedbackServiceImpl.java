@@ -14,6 +14,7 @@ import com.decisionhub.backend.entity.DecisionVisibility;
 import com.decisionhub.backend.entity.Feedback;
 import com.decisionhub.backend.entity.FeedbackStatus;
 import com.decisionhub.backend.entity.FeedbackType;
+import com.decisionhub.backend.entity.NotificationType;
 import com.decisionhub.backend.entity.Option;
 import com.decisionhub.backend.entity.User;
 import com.decisionhub.backend.entity.UserRole;
@@ -27,6 +28,7 @@ import com.decisionhub.backend.repository.FeedbackRepository;
 import com.decisionhub.backend.repository.OptionRepository;
 import com.decisionhub.backend.repository.UserRepository;
 import com.decisionhub.backend.service.FeedbackService;
+import com.decisionhub.backend.service.NotificationService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -51,6 +53,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private final OptionRepository optionRepository;
     private final UserRepository userRepository;
     private final CommunityMemberRepository communityMemberRepository;
+    private final NotificationService notificationService;
 
     private static final Map<FeedbackStatus, Set<FeedbackStatus>> VALID_TRANSITIONS = Map.of(
         FeedbackStatus.SUBMITTED, Set.of(FeedbackStatus.UNDER_REVIEW, FeedbackStatus.ACCEPTED, FeedbackStatus.REJECTED, FeedbackStatus.RESOLVED),
@@ -65,12 +68,14 @@ public class FeedbackServiceImpl implements FeedbackService {
             DecisionRepository decisionRepository,
             OptionRepository optionRepository,
             UserRepository userRepository,
-            CommunityMemberRepository communityMemberRepository) {
+            CommunityMemberRepository communityMemberRepository,
+            NotificationService notificationService) {
         this.feedbackRepository = feedbackRepository;
         this.decisionRepository = decisionRepository;
         this.optionRepository = optionRepository;
         this.userRepository = userRepository;
         this.communityMemberRepository = communityMemberRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -105,6 +110,17 @@ public class FeedbackServiceImpl implements FeedbackService {
                 .build();
 
         Feedback saved = feedbackRepository.save(feedback);
+
+        // Notify decision creator if someone else submitted feedback
+        if (!decision.getCreator().getId().equals(user.getId())) {
+            notificationService.createNotification(
+                    decision.getCreator(),
+                    NotificationType.FEEDBACK_RECEIVED,
+                    user.getFullName() + " submitted " + request.feedbackType() + " feedback on your decision: '" + decision.getTitle() + "'",
+                    decision.getId()
+            );
+        }
+
         return FeedbackResponseDto.fromEntity(saved);
     }
 
@@ -238,6 +254,18 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
 
         Feedback saved = feedbackRepository.save(feedback);
+
+        // Notify feedback author if reviewer changed status
+        if (!feedback.getAuthor().getId().equals(user.getId())) {
+            String reasonText = (request.reason() != null && !request.reason().isBlank()) ? " (" + request.reason().trim() + ")" : "";
+            notificationService.createNotification(
+                    feedback.getAuthor(),
+                    NotificationType.FEEDBACK_STATUS_CHANGED,
+                    "Your feedback on '" + feedback.getDecision().getTitle() + "' was marked as " + targetStatus + reasonText,
+                    feedback.getDecision().getId()
+            );
+        }
+
         return FeedbackResponseDto.fromEntity(saved);
     }
 

@@ -544,4 +544,133 @@ Base Path: `/api/v1`
 }
 ```
 
+---
+
+## 9. Milestone 3, Phase 3: Notification System
+
+DecisionHub features a centralized, in-app notification engine delivering targeted, event-driven alerts across discussions, feedback workflows, voting activity, community membership, and deadline lifecycles.
+
+### 1. Data Model & Architecture
+
+```mermaid
+erDiagram
+    USERS ||--o{ NOTIFICATIONS : "receives"
+
+    NOTIFICATIONS {
+        bigint id PK
+        bigint user_id FK "fk_notifications_user"
+        varchar type "NotificationType enum"
+        text message
+        boolean is_read
+        bigint reference_id
+        datetime created_at
+        datetime updated_at
+    }
+```
+
+- **Notification Fields**:
+  - `user`: Recipient of the notification.
+  - `type`: Enum categorizing the notification trigger.
+  - `message`: User-friendly human readable notification text.
+  - `isRead`: Boolean read flag (default `false`).
+  - `referenceId`: Optional ID linking to the related decision, comment, or community.
+  - `createdAt`: Timestamp when the notification was generated.
+
+---
+
+### 2. Supported Notification Event Types
+
+| Category | Type | Trigger / Recipient |
+|---|---|---|
+| **Discussions** | `COMMENT_RECEIVED` | Someone comments on a user's decision (notifies decision creator). |
+| | `COMMENT_REPLY` | Someone replies to a user's comment (notifies parent comment author). |
+| **Feedback** | `FEEDBACK_RECEIVED` | Someone submits feedback on a user's decision (notifies decision creator). |
+| | `FEEDBACK_STATUS_CHANGED` | Feedback status updated by reviewer (notifies feedback author). |
+| **Voting** | `VOTE_RECEIVED` | Someone votes on a poll (notifies poll creator). |
+| | `POLL_DEADLINE_APPROACHING` | Scheduled reminder when poll deadline is within 24 hours. |
+| | `DECISION_CLOSED` | Poll voting period expired and decision auto-closed. |
+| **Community** | `MEMBERSHIP_REQUESTED` | New user joins community (notifies community creator). |
+| | `MEMBERSHIP_APPROVED` | User membership request approved. |
+| | `MEMBERSHIP_REJECTED` | User membership request rejected. |
+| | `MEMBER_REMOVED` | User removed from community. |
+| | `COMMUNITY_OWNERSHIP_TRANSFERRED` | Community ownership reassigned. |
+| **System** | `SYSTEM` | Platform-wide administrative or system broadcast. |
+
+---
+
+### 3. Permissions & Deduplication Rules
+
+- **Strict Recipient Isolation**: Users can only view, mark as read, or delete notifications where `user_id == authenticatedUserId`. Accessing another user's notification returns `403 Forbidden`.
+- **Self-Action Suppression**: The system suppresses notification generation when a user performs an action on their own resources (e.g. author commenting on their own decision).
+- **Scheduled Reminder Deduplication**: The scheduler verifies via `existsByUserIdAndTypeAndReferenceId` before publishing deadline reminders, preventing duplicate alerts.
+
+---
+
+### 4. Scheduled Background Jobs
+
+- **Class**: `DecisionDeadlineScheduler`
+- **Execution Interval**: Fixed rate of 60 seconds (`fixedDelay = 60000`).
+- **Behaviors**:
+  1. **Approaching Deadlines**: Scans active decisions expiring within the next 24 hours. Emits `POLL_DEADLINE_APPROACHING` once per decision.
+  2. **Auto-Close Expired Polls**: Scans active decisions where `deadline < now()`. Transitions status to `COMPLETED` and emits `DECISION_CLOSED` once.
+
+---
+
+### 5. API Reference Catalog
+
+Base Path: `/api/v1/notifications`
+
+| HTTP Method | Path | Auth Required | Description |
+|---|---|:---:|---|
+| `GET` | `/api/v1/notifications` | Yes | Retrieve paginated notifications for current user (newest first) |
+| `GET` | `/api/v1/notifications/unread` | Yes | Retrieve only unread paginated notifications |
+| `GET` | `/api/v1/notifications/unread/count` | Yes | Retrieve total count of unread notifications |
+| `PUT` | `/api/v1/notifications/{notificationId}/read` | Yes | Mark a specific notification as read (recipient only) |
+| `PUT` | `/api/v1/notifications/read-all` | Yes | Mark all notifications as read for current user |
+| `DELETE` | `/api/v1/notifications/{notificationId}` | Yes | Delete a specific notification (recipient only) |
+
+---
+
+### 6. Sample Payloads
+
+#### Notification Response DTO
+```json
+{
+  "success": true,
+  "message": "Notifications retrieved successfully",
+  "data": {
+    "content": [
+      {
+        "id": 1,
+        "userId": 541,
+        "type": "COMMENT_RECEIVED",
+        "message": "Bob Miller commented on your decision: 'Adopt Event-Driven Architecture'",
+        "isRead": false,
+        "referenceId": 233,
+        "createdAt": "2026-11-24T18:45:00"
+      }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalElements": 1,
+    "totalPages": 1,
+    "last": true
+  },
+  "timestamp": "2026-11-24T18:45:00"
+}
+```
+
+#### Unread Count Response DTO
+```json
+{
+  "success": true,
+  "message": "Unread count retrieved successfully",
+  "data": {
+    "unreadCount": 3
+  },
+  "timestamp": "2026-11-24T18:45:05"
+}
+```
+
+
 

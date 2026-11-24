@@ -26,5 +26,9 @@ public interface DecisionRepository extends JpaRepository<Decision, Long> {
     List<Decision> findByVisibility(DecisionVisibility visibility);
     List<Decision> findByCommunityPollTrueAndVisibilityAndStatus( DecisionVisibility visibility,DecisionStatus status
 );
+
+    List<Decision> findByStatusAndDeadlineBetween(DecisionStatus status, java.time.LocalDateTime start, java.time.LocalDateTime end);
+
+    List<Decision> findByStatusAndDeadlineBefore(DecisionStatus status, java.time.LocalDateTime now);
 }
 

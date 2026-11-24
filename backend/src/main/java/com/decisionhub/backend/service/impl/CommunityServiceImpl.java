@@ -23,6 +23,7 @@ public class CommunityServiceImpl implements CommunityService {
     private final CommunityMemberRepository memberRepository;
     private final UserRepository userRepository;
     private final DecisionRepository decisionRepository;
+    private final com.decisionhub.backend.service.NotificationService notificationService;
 
     private User getUser(String email) {
         return userRepository.findByEmail(email)
@@ -203,6 +204,16 @@ public class CommunityServiceImpl implements CommunityService {
         newMember.setCommunity(community);
         newMember.setUser(user);
         memberRepository.save(newMember);
+
+        // Notify community creator when a member joins
+        if (!community.getCreator().getId().equals(user.getId())) {
+            notificationService.createNotification(
+                    community.getCreator(),
+                    NotificationType.MEMBERSHIP_REQUESTED,
+                    user.getFullName() + " joined your community: '" + community.getName() + "'",
+                    community.getId()
+            );
+        }
 
         return "Successfully joined the community";
     }
