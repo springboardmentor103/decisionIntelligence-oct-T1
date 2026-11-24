@@ -602,7 +602,7 @@ GET {{baseUrl}}/api/v1/analytics/voting HTTP/1.1
 Authorization: Bearer {{authToken}}
 
 ### 9.5 Scoped Voting Analytics by Decision
-GET {{baseUrl}}/api/v1/analytics/voting?decisionId={{publicDecisionId}} HTTP/1.1
+GET {{baseUrl}}/api/v1/analytics/voting?decisionId={{decisionId}} HTTP/1.1
 Authorization: Bearer {{authToken}}
 
 ### 9.6 Community Analytics (Total Communities, Top Communities, Role & Status Breakdown)
@@ -622,7 +622,7 @@ GET {{baseUrl}}/api/v1/analytics/trends?period=daily HTTP/1.1
 Authorization: Bearer {{authToken}}
 
 ### 9.10 Detailed Decision Analytics (Votes per Option, Average Ratings, Percentages)
-GET {{baseUrl}}/api/v1/analytics/decisions/{{publicDecisionId}} HTTP/1.1
+GET {{baseUrl}}/api/v1/analytics/decisions/{{decisionId}} HTTP/1.1
 Authorization: Bearer {{authToken}}
 
 ### 9.11 Unauthorized Analytics Access Attempt (Expected: 401 Unauthorized)
